@@ -1,5 +1,6 @@
 #include "HeadlessTester.h"
 #include "../Generators/EuclideanGenerator.h"
+#include <climits>
 #include "../Generators/DualEuclideanGenerator.h"
 
 HeadlessTester::HeadlessTester()
@@ -10,12 +11,11 @@ HeadlessTester::HeadlessTester()
 
 juce::StringArray HeadlessTester::runAllTests()
 {
+    results.clear();
     results.add(testEuclideanGeneratorBasic());
     results.add(testEuclideanGeneratorPatterns());
     results.add(testDualEuclideanGeneratorBasic());
     results.add(testDualEuclideanGeneratorPatterns());
-    juce::StringArray results;
-
     results.add(testRandomGeneratorBasic());
     results.add(testRandomGeneratorScales());
     results.add(testRandomGeneratorParameters());
@@ -247,6 +247,16 @@ juce::String HeadlessTester::testScalesIntervals()
             {
                 intervalsCorrect = false;
                 break;
+            }
+        }
+
+        return formatTestResult("Scales Intervals", intervalsCorrect, "Major scale intervals correct");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Scales Intervals", false, e.what());
+    }
+}
 // === ТЕСТЫ EUCLIDEAN GENERATOR ===
 
 juce::String HeadlessTester::testEuclideanGeneratorBasic()
@@ -417,16 +427,6 @@ juce::String HeadlessTester::testDualEuclideanGeneratorPatterns()
     catch (const std::exception& e)
     {
         return formatTestResult("DualEuclideanGenerator Patterns", false, e.what());
-    }
-}
-            }
-        }
-
-        return formatTestResult("Scales Intervals", intervalsCorrect, "Major scale intervals correct");
-    }
-    catch (const std::exception& e)
-    {
-        return formatTestResult("Scales Intervals", false, e.what());
     }
 }
 

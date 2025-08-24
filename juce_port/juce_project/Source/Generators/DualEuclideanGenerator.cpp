@@ -165,30 +165,36 @@ void DualEuclideanGenerator::updatePatterns()
     // Обновляем паттерн для Machine A
     stepsA_ = juce::jmax(1, stepsA_);
     pulsesA_ = juce::jmax(0, juce::jmin(pulsesA_, stepsA_));
-
-    patternA_.clear();
+    patternA_.assign(stepsA_, false);
     if (pulsesA_ > 0)
     {
-        patternA_.resize(static_cast<size_t>(stepsA_), false);
-        for (int i = 0; i < pulsesA_; ++i)
+        int bucket = 0;
+        for (int i = 0; i < stepsA_; ++i)
         {
-            int position = (i * stepsA_) / pulsesA_;
-            patternA_[static_cast<size_t>(position)] = true;
+            bucket += pulsesA_;
+            if (bucket >= stepsA_)
+            {
+                bucket -= stepsA_;
+                patternA_[i] = true;
+            }
         }
     }
 
     // Обновляем паттерн для Machine B
     stepsB_ = juce::jmax(1, stepsB_);
     pulsesB_ = juce::jmax(0, juce::jmin(pulsesB_, stepsB_));
-
-    patternB_.clear();
+    patternB_.assign(stepsB_, false);
     if (pulsesB_ > 0)
     {
-        patternB_.resize(static_cast<size_t>(stepsB_), false);
-        for (int i = 0; i < pulsesB_; ++i)
+        int bucket = 0;
+        for (int i = 0; i < stepsB_; ++i)
         {
-            int position = (i * stepsB_) / pulsesB_;
-            patternB_[static_cast<size_t>(position)] = true;
+            bucket += pulsesB_;
+            if (bucket >= stepsB_)
+            {
+                bucket -= stepsB_;
+                patternB_[i] = true;
+            }
         }
     }
 

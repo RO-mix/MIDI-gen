@@ -47,4 +47,5 @@ private:
 
     // Логирование
     juce::StringArray testLog;
+    juce::StringArray results;
 };

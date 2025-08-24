@@ -4,7 +4,8 @@
 class BaseGenerator
 {
 public:
-    virtual ~BaseGenerator() = default;
+    BaseGenerator() = default;
+    virtual ~BaseGenerator();
 
     // Основной метод генерации
     virtual std::pair<std::vector<std::pair<juce::MidiMessage, double>>, double>

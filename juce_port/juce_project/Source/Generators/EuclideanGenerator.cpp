@@ -138,14 +138,20 @@ void EuclideanGenerator::updatePattern()
         return;
     }
 
-    // Алгоритм генерации евклидового ритма
-    pattern_.resize(static_cast<size_t>(steps_), false);
-
-    // Распределяем импульсы равномерно
-    for (int i = 0; i < pulses_; ++i)
+    // Bjorklund's algorithm via "bucket" method.
+    pattern_.assign(steps_, false);
+    if (pulses_ > 0)
     {
-        int position = (i * steps_) / pulses_;
-        pattern_[static_cast<size_t>(position)] = true;
+        int bucket = 0;
+        for (int i = 0; i < steps_; ++i)
+        {
+            bucket += pulses_;
+            if (bucket >= steps_)
+            {
+                bucket -= steps_;
+                pattern_[i] = true;
+            }
+        }
     }
 
     // Сбрасываем текущий шаг

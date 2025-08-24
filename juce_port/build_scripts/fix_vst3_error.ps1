@@ -23,7 +23,7 @@ $content = Get-Content $JuceModulePath -Raw
 Write-Host "Original file size: $($content.Length) characters" -ForegroundColor Gray
 
 # Find and replace the error condition
-$pattern = '(?s)#if JUCE_VST3_CAN_REPLACE_VST2 && ! JUCE_FORCE_USE_LEGACY_PARAM_IDS && ! JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING.*?// values as this will break compatibility with currently released VST3\s*// versions of the plugin\.\s*#\s*error You may have a conflict with parameter automation between VST2 and VST3 versions of your plugin\. See the comment above for more details\.\s*#endif'
+$pattern = '(?s)#if JUCE_VST3_CAN_REPLACE_VST2 && ! JUCE_FORCE_USE_LEGACY_PARAM_IDS && ! JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING.*?// VST2 version of the plugin, enable JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING\.\s*// DO NOT change the JUCE_VST3_CAN_REPLACE_VST2 or JUCE_FORCE_USE_LEGACY_PARAM_IDS\s*// values as this will break compatibility with currently released VST3\s*// versions of the plugin\.\s*#\s*error You may have a conflict with parameter automation between VST2 and VST3 versions of your plugin\. See the comment above for more details\.\s*#endif'
 
 $replacement = @'
 // Temporarily disabled VST2/VST3 parameter conflict check

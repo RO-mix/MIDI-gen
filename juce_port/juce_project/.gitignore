@@ -7,7 +7,9 @@
 *.xcodeproj
 *.xcworkspace
 Makefile
-CMakeLists.txt
+# Allow specific files that should be tracked
+!CreativeMIDIGenerator.jucer
+!CMakeLists.txt
 
 # Build directories
 Builds/

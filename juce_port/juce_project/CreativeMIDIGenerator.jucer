@@ -1,0 +1,16 @@
+   <JUCEOPTIONS>
+     <JUCEOPTIONS id="JUCE_VST3_CAN_REPLACE_VST2" value="0"/>
+     <JUCEOPTIONS id="JUCE_FORCE_USE_LEGACY_PARAM_IDS" value="1"/>
+     <JUCEOPTIONS id="JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING" value="1"/>
+   </JUCEOPTIONS>
+   <JUCERPROJECT id="CrMG" name="Creative MIDI Generator" projectType="audioplug"
+               version="1.0.0" bundleIdentifier="com.creativemidi.generators"
+               pluginName="CreativeMIDIGenerator" pluginDesc="MIDI Pattern Generator with Euclidean rhythms"
+               pluginManufacturer="Creative MIDI" pluginManufacturerCode="CrMG"
+               pluginCode="CrMG" pluginChannelConfigs="0" pluginCharacteristics="Midi Input, Midi Output"
+               pluginBusConfigurations="" pluginVSTNumMidiInputs="16" pluginVSTNumMidiOutputs="16"
+               pluginRTASDisableBypass="0" pluginRTASDisableMultiMono="0" pluginAAXDisableBypass="0"
+               pluginAAXDisableMultiMono="0" pluginARAIDs="" author="Creative MIDI"
+               website="https://creativemidi.com" licenceDescription="" pluginFormats="buildVST3"
+               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn"
+               jucerFormatVersion="1">

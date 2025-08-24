@@ -12,6 +12,8 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
                      #endif
                        )
 {
+    // Инициализация генератора
+    randomGenerator_ = std::make_unique<RandomGenerator>();
 }
 
 CreativeMidiGeneratorAudioProcessor::~CreativeMidiGeneratorAudioProcessor()
@@ -85,6 +87,9 @@ void CreativeMidiGeneratorAudioProcessor::prepareToPlay (double sampleRate, int 
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+    sampleRate_ = sampleRate;
+    samplesPerBeat_ = sampleRate / (120.0 / 60.0); // 120 BPM -> beats per second
+    currentBeat_ = 0.0;
 }
 
 void CreativeMidiGeneratorAudioProcessor::releaseResources()
@@ -124,6 +129,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     juce::ScopedNoDenormals noDenormals;
     auto totalNumInputChannels  = getTotalNumInputChannels();
     auto totalNumOutputChannels = getTotalNumOutputChannels();
+    auto numSamples = buffer.getNumSamples();
 
     // In case we have more outputs than inputs, this code clears any output
     // channels that didn't contain input data, (because these aren't
@@ -133,6 +139,47 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+
+    // Генерация MIDI событий
+    if (randomGenerator_ != nullptr)
+    {
+        // Вычисляем количество бит в этом блоке
+        double beatsInBlock = static_cast<double>(numSamples) / samplesPerBeat_;
+
+        // Генерируем события на основе текущего ритма
+        auto [events, nextBeatOffset] = randomGenerator_->generate(currentBeat_);
+
+        // Добавляем MIDI события в буфер
+        for (const auto& [midiMessage, duration] : events)
+        {
+            // Вычисляем позицию в сэмплах для этого MIDI события
+            // Простая реализация - добавляем событие в начало блока
+            int samplePosition = 0;
+
+            // Добавляем MIDI сообщение в буфер
+            midiMessages.addEvent(midiMessage, samplePosition);
+
+            // Если есть длительность, добавляем note_off
+            if (duration > 0.0)
+            {
+                // Вычисляем позицию для note_off
+                int noteOffSample = static_cast<int>(duration * samplesPerBeat_);
+                if (noteOffSample < numSamples)
+                {
+                    auto noteOff = juce::MidiMessage::noteOff(midiMessage.getChannel(),
+                                                             midiMessage.getNoteNumber());
+                    midiMessages.addEvent(noteOff, noteOffSample);
+                }
+            }
+        }
+
+        // Обновляем текущую позицию
+        currentBeat_ += beatsInBlock;
+
+        // Сбрасываем счетчик если он стал слишком большим
+        if (currentBeat_ > 1000.0)
+            currentBeat_ = 0.0;
+    }
 
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...

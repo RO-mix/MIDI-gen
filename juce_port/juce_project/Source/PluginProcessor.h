@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "Generators/RandomGenerator.h"
 
 //==============================================================================
 /**
@@ -46,6 +47,12 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
+    //==============================================================================
+    std::unique_ptr<RandomGenerator> randomGenerator_;
+    double currentBeat_ = 0.0;
+    double samplesPerBeat_ = 0.0;
+    double sampleRate_ = 44100.0;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CreativeMidiGeneratorAudioProcessor)
 };

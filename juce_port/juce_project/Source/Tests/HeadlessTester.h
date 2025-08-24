@@ -43,5 +43,4 @@ private:
 
     // Логирование
     juce::StringArray testLog;
-    juce::FileLogger logger;
 };

@@ -50,4 +50,5 @@ public:
 };
 
 // Точка входа для standalone приложения
-START_JUCE_APPLICATION(HeadlessTestRunnerApplication)
+// Закомментировано, так как START_JUCE_APPLICATION не может использоваться в плагине
+// START_JUCE_APPLICATION(HeadlessTestRunnerApplication)

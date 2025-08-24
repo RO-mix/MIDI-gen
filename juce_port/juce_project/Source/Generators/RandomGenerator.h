@@ -46,5 +46,5 @@ private:
     float getRandomDuration() const;
 
     // Random number generation
-    juce::Random random_;
+    mutable juce::Random random_;
 };

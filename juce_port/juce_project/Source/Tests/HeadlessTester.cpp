@@ -2,11 +2,8 @@
 
 HeadlessTester::HeadlessTester()
 {
-    // Инициализация логгера
-    juce::File logFile = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-                        .getChildFile("CreativeMIDIGenerator")
-                        .getChildFile("headless_test.log");
-    logger = std::make_unique<juce::FileLogger>(logFile, "Headless Test Log");
+    // Инициализация тестовой системы
+    testLog.clear();
 }
 
 juce::StringArray HeadlessTester::runAllTests()
@@ -382,9 +379,8 @@ juce::String HeadlessTester::formatTestResult(const juce::String& testName, bool
     if (!details.isEmpty())
         result += " (" + details + ")";
 
-    // Логируем результат
-    if (logger)
-        logger->logMessage(result);
+    // Сохраняем результат в лог
+    testLog.add(result);
 
     return result;
 }

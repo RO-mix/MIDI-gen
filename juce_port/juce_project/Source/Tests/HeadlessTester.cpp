@@ -1,4 +1,6 @@
 #include "HeadlessTester.h"
+#include "../Generators/EuclideanGenerator.h"
+#include "../Generators/DualEuclideanGenerator.h"
 
 HeadlessTester::HeadlessTester()
 {
@@ -8,6 +10,10 @@ HeadlessTester::HeadlessTester()
 
 juce::StringArray HeadlessTester::runAllTests()
 {
+    results.add(testEuclideanGeneratorBasic());
+    results.add(testEuclideanGeneratorPatterns());
+    results.add(testDualEuclideanGeneratorBasic());
+    results.add(testDualEuclideanGeneratorPatterns());
     juce::StringArray results;
 
     results.add(testRandomGeneratorBasic());
@@ -241,6 +247,178 @@ juce::String HeadlessTester::testScalesIntervals()
             {
                 intervalsCorrect = false;
                 break;
+// === ТЕСТЫ EUCLIDEAN GENERATOR ===
+
+juce::String HeadlessTester::testEuclideanGeneratorBasic()
+{
+    try
+    {
+        auto generator = std::make_unique<EuclideanGenerator>();
+
+        // Тестируем базовую генерацию
+        auto [events, duration] = generator->generate(0.0);
+
+        if (events.empty())
+        {
+            return formatTestResult("EuclideanGenerator Basic", false, "No events generated");
+        }
+
+        // Проверяем, что сгенерированы MIDI события
+        bool hasNoteOn = false;
+        for (const auto& [msg, dur] : events)
+        {
+            if (msg.isNoteOn())
+            {
+                hasNoteOn = true;
+                break;
+            }
+        }
+
+        return formatTestResult("EuclideanGenerator Basic", hasNoteOn, "Generated MIDI events");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("EuclideanGenerator Basic", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testEuclideanGeneratorPatterns()
+{
+    try
+    {
+        auto generator = std::make_unique<EuclideanGenerator>();
+
+        // Тестируем различные евклидовы паттерны
+        struct TestPattern {
+            int steps;
+            int pulses;
+            int expectedNotes;
+        };
+
+        std::vector<TestPattern> patterns = {
+            {8, 3, 3},   // 3 notes in 8 steps
+            {16, 4, 4},  // 4 notes in 16 steps
+            {12, 5, 5},  // 5 notes in 12 steps
+        };
+
+        for (const auto& pattern : patterns)
+        {
+            generator->setParameter("steps", static_cast<float>(pattern.steps));
+            generator->setParameter("pulses", static_cast<float>(pattern.pulses));
+            generator->setParameter("noteProbability", 1.0f); // 100% вероятность
+
+            int generatedNotes = 0;
+
+            // Генерируем полный цикл
+            for (int step = 0; step < pattern.steps; ++step)
+            {
+                auto [events, duration] = generator->generate(static_cast<double>(step));
+                for (const auto& [msg, dur] : events)
+                {
+                    if (msg.isNoteOn())
+                    {
+                        generatedNotes++;
+                    }
+                }
+            }
+
+            if (generatedNotes != pattern.expectedNotes)
+            {
+                return formatTestResult("EuclideanGenerator Patterns", false,
+                    "Pattern " + juce::String(pattern.steps) + "," + juce::String(pattern.pulses) +
+                    " generated " + juce::String(generatedNotes) + " notes, expected " +
+                    juce::String(pattern.expectedNotes));
+            }
+        }
+
+        return formatTestResult("EuclideanGenerator Patterns", true, "All patterns generated correctly");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("EuclideanGenerator Patterns", false, e.what());
+    }
+}
+
+// === ТЕСТЫ DUAL EUCLIDEAN GENERATOR ===
+
+juce::String HeadlessTester::testDualEuclideanGeneratorBasic()
+{
+    try
+    {
+        auto generator = std::make_unique<DualEuclideanGenerator>();
+
+        // Тестируем базовую генерацию
+        auto [events, duration] = generator->generate(0.0);
+
+        if (events.empty())
+        {
+            return formatTestResult("DualEuclideanGenerator Basic", false, "No events generated");
+        }
+
+        // Проверяем, что сгенерированы MIDI события
+        bool hasNoteOn = false;
+        for (const auto& [msg, dur] : events)
+        {
+            if (msg.isNoteOn())
+            {
+                hasNoteOn = true;
+                break;
+            }
+        }
+
+        return formatTestResult("DualEuclideanGenerator Basic", hasNoteOn, "Generated MIDI events");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("DualEuclideanGenerator Basic", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testDualEuclideanGeneratorPatterns()
+{
+    try
+    {
+        auto generator = std::make_unique<DualEuclideanGenerator>();
+
+        // Тестируем различные комбинации паттернов для двух машин
+        generator->setParameter("stepsA", 16.0f);
+        generator->setParameter("pulsesA", 4.0f);
+        generator->setParameter("stepsB", 15.0f);
+        generator->setParameter("pulsesB", 4.0f);
+        generator->setParameter("noteProbability", 1.0f); // 100% вероятность
+
+        // Генерируем несколько циклов
+        int totalNotesGenerated = 0;
+        int cycles = 3;
+
+        for (int cycle = 0; cycle < cycles; ++cycle)
+        {
+            // Используем максимальное количество шагов из двух машин
+            for (int step = 0; step < 16; ++step)
+            {
+                auto [events, duration] = generator->generate(static_cast<double>(step));
+                for (const auto& [msg, dur] : events)
+                {
+                    if (msg.isNoteOn())
+                    {
+                        totalNotesGenerated++;
+                    }
+                }
+            }
+        }
+
+        // Проверяем, что были сгенерированы ноты (общее количество может варьироваться)
+        bool notesGenerated = totalNotesGenerated > 0;
+
+        return formatTestResult("DualEuclideanGenerator Patterns", notesGenerated,
+            "Generated " + juce::String(totalNotesGenerated) + " notes across " +
+            juce::String(cycles) + " cycles");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("DualEuclideanGenerator Patterns", false, e.what());
+    }
+}
             }
         }
 

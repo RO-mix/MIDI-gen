@@ -35,6 +35,10 @@ private:
     juce::String testRandomGeneratorParameters();
     juce::String testScalesBasic();
     juce::String testScalesIntervals();
+    juce::String testEuclideanGeneratorBasic();
+    juce::String testEuclideanGeneratorPatterns();
+    juce::String testDualEuclideanGeneratorBasic();
+    juce::String testDualEuclideanGeneratorPatterns();
 
     // Вспомогательные методы
     std::vector<int> collectGeneratedNotes(std::unique_ptr<BaseGenerator> generator, int numBeats);

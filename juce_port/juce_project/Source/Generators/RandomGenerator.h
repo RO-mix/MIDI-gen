@@ -24,6 +24,7 @@ public:
     void setRate(float rate) { rate_ = rate; }
     void setChannel(int channel) { channel_ = channel; }
     void setAddCC74(bool add) { addCC74_ = add; }
+    void setDurationBias(float bias) { durationBias_ = bias; }
 
 private:
     // Параметры генератора
@@ -34,6 +35,7 @@ private:
     float noteProbability_ = 1.0f; // Вероятность генерации ноты
     float rate_ = 1.0f;          // Темп генерации (beats)
     int channel_ = 0;            // MIDI канал
+    float durationBias_ = 0.5f;  // Смещение длительности (0.0 - длинные, 1.0 - короткие)
     bool addCC74_ = false;       // Добавлять CC74 (brightness)
 
     // Масштаб и доступные ноты

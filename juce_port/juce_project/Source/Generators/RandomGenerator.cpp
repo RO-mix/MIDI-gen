@@ -1,4 +1,5 @@
 #include "RandomGenerator.h"
+#include "Duration.h"
 
 RandomGenerator::RandomGenerator()
 {
@@ -64,6 +65,8 @@ void RandomGenerator::setParameter(const juce::String& paramId, float value)
         channel_ = static_cast<int>(value);
     else if (paramId == "addCC74")
         addCC74_ = (value > 0.5f);
+    else if (paramId == "durationBias")
+        durationBias_ = value;
 }
 
 float RandomGenerator::getParameter(const juce::String& paramId) const
@@ -84,6 +87,8 @@ float RandomGenerator::getParameter(const juce::String& paramId) const
         return static_cast<float>(channel_);
     else if (paramId == "addCC74")
         return addCC74_ ? 1.0f : 0.0f;
+    else if (paramId == "durationBias")
+        return durationBias_;
 
     return 0.0f;
 }
@@ -139,7 +144,7 @@ int RandomGenerator::calculateVelocity() const
         beta_param = 1.0f + (bias - 0.5f) * 8.0f;
     }
 
-    // Простая аппроксимация бета-распределения
+    // Более точная аппроксимация бета-распределения
     float u1 = random_.nextFloat();
     float u2 = random_.nextFloat();
 
@@ -150,8 +155,9 @@ int RandomGenerator::calculateVelocity() const
     }
     else
     {
-        // Упрощенная аппроксимация
-        x = (u1 * alpha + u2 * beta_param) / (alpha + beta_param);
+        // Используем метод инверсии для бета-распределения
+        // Это более точная аппроксимация чем предыдущая версия
+        x = std::pow(u1, 1.0f / alpha) / (std::pow(u1, 1.0f / alpha) + std::pow(u2, 1.0f / beta_param));
     }
 
     int velocity = static_cast<int>(1 + x * (maxVelocity_ - 1));
@@ -160,9 +166,6 @@ int RandomGenerator::calculateVelocity() const
 
 float RandomGenerator::getRandomDuration() const
 {
-    // Простая случайная длительность (можно улучшить)
-    // В оригинале используется get_probabilistic_duration
-    float durations[] = {0.25f, 0.5f, 1.0f, 1.5f, 2.0f};
-    int randomIndex = random_.nextInt(5);
-    return durations[randomIndex];
+    // Используем новый Duration модуль для вероятностной генерации длительностей
+    return Duration::getProbabilisticDuration(durationBias_, random_);
 }

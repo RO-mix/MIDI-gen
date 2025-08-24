@@ -2,6 +2,28 @@
 
 This directory contains PowerShell scripts to help with building and testing the Creative MIDI Generator JUCE project.
 
+### 🔨 `force_rebuild.ps1` - **FOR COMPILATION ISSUES**
+**Purpose**: Forces a complete rebuild of the project, cleaning all existing build files first.
+
+**Usage**:
+```powershell
+cd juce_port\build_scripts
+.\force_rebuild.ps1
+```
+
+**What it does**:
+1. 🧹 Cleans all existing build files (Release, Debug, build directories)
+2. 🔍 Finds MSBuild installation
+3. 🏗️ Forces complete rebuild using MSBuild
+4. ✅ Verifies build output (.vst3, .exe files)
+5. 📊 Reports build results
+
+**When to use**:
+- When `full_test_cycle.ps1` skips compilation
+- After making changes to source code
+- When you need fresh build files
+- If existing build is corrupted
+
 ## Available Scripts
 
 ### ⭐ `full_test_cycle.ps1` - **RECOMMENDED**

@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "d:/PROG/PYTHON/MIDI gen/juce_port",
-      "program": "d:/PROG/PYTHON/MIDI gen/juce_port/build/Debug/outDebug",
+      "cwd": "d:/PROG/PYTHON/MIDI gen/juce_port/juce_project",
+      "program": "d:/PROG/PYTHON/MIDI gen/juce_port/juce_project/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [

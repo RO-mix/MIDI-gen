@@ -1,0 +1,17 @@
+{
+    "cmake.configureOnOpen": true,
+    "cmake.buildDirectory": "${workspaceFolder}/../build",
+    "cmake.installPrefix": "${workspaceFolder}/../install",
+    "cmake.generator": "Visual Studio 17 2022",
+    "cmake.configureArgs": [
+        "-DJUCE_PATH=D:/PROG/JUCE"
+    ],
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "D:/PROG/JUCE/modules/**"
+    ],
+    "files.associations": {
+        "*.h": "cpp",
+        "*.cpp": "cpp"
+    }
+}

@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug CreativeMIDIGenerator",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/../build/Release/CreativeMIDIGenerator.dll",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "console": "integratedTerminal",
+            "preLaunchTask": "build"
+        }
+    ]
+}

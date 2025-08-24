@@ -1,0 +1,27 @@
+# JUCE project files
+*.jucer
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.xcodeproj
+*.xcworkspace
+Makefile
+CMakeLists.txt
+
+# Build directories
+Builds/
+build/
+
+# IDE files
+*.user
+*.workspace
+*.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

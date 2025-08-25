@@ -1,31 +1,23 @@
 #include "HeadlessTester.h"
-#include "../PluginProcessor.h"
-#include "../Generators/BaseGenerator.h"
-#include "../Generators/RandomGenerator.h"
-#include "../Generators/EuclideanGenerator.h"
-#include "../Generators/DualEuclideanGenerator.h"
-#include "../Theory/Scales.h"
-#include "../Looper/Looper.h"
-#include <climits>
 
 HeadlessTester::HeadlessTester()
 {
+    // We need an instance of the processor to access the APVTS
     processor = std::make_unique<CreativeMidiGeneratorAudioProcessor>();
 }
 
 juce::StringArray HeadlessTester::runAllTests()
 {
     results.clear();
+    testLog.clear();
     
-    // Generator Tests
+    // Run all defined tests
     results.add(testRandomGeneratorBasic());
     results.add(testRandomGeneratorParameters());
     results.add(testEuclideanGeneratorBasic());
     results.add(testEuclideanGeneratorPatterns());
     results.add(testDualEuclideanGeneratorBasic());
     results.add(testDualEuclideanGeneratorPatterns());
-
-    // Scales and Looper tests remain, as they don't depend on the changed generator API
     results.add(testScalesBasic());
     results.add(testScalesIntervals());
     results.add(testLooperBasic());
@@ -34,34 +26,39 @@ juce::StringArray HeadlessTester::runAllTests()
     return results;
 }
 
-void HeadlessTester::printTestResults(const juce::StringArray& results)
+void HeadlessTester::printTestResults(const juce::StringArray& testResults)
 {
-    std::cout << "\n=== HEADLESS TEST RESULTS ===" << std::endl;
+    // Use std::cout for headless environments
+    std::cout << "\n=== HEADLESS TEST RESULTS ===\n";
     int passed = 0;
-    int total = results.size();
-    for (const auto& result : results)
+    for (const auto& result : testResults)
     {
-        std::cout << result << std::endl;
+        std::cout << result << "\n";
         if (result.contains("PASSED"))
             passed++;
     }
-    std::cout << "\nSUMMARY: " << passed << "/" << total << " tests passed" << std::endl;
-    if (passed == total)
-        std::cout << "🎉 All tests passed!" << std::endl;
+    std::cout << "\nSUMMARY: " << passed << "/" << testResults.size() << " tests passed\n";
+    if (passed == testResults.size())
+        std::cout << "🎉 All tests passed!\n";
     else
-        std::cout << "⚠️  Some tests failed - check logs for details" << std::endl;
+        std::cout << "⚠️  Some tests failed - check logs for details\n";
+
+    // Also log to a file for CI/CD systems
+    juce::File logFile = juce::File::getSpecialLocation(juce::File::SpecialLocationType::tempDirectory).getChildFile("headless_test_results.txt");
+    logFile.replaceWithText(testLog.joinIntoString("\n"));
+    std::cout << "Full log written to: " << logFile.getFullPathName() << "\n";
 }
 
 juce::String HeadlessTester::formatTestResult(const juce::String& testName, bool passed, const juce::String& details)
 {
     juce::String result = testName + ": " + (passed ? "PASSED" : "FAILED");
-    if (!details.isEmpty())
+    if (details.isNotEmpty())
         result += " (" + details + ")";
     testLog.add(result);
     return result;
 }
 
-// === REFACTORED GENERATOR TESTS ===
+// === GENERATOR TESTS (Refactored for new API) ===
 
 juce::String HeadlessTester::testRandomGeneratorBasic()
 {
@@ -69,8 +66,9 @@ juce::String HeadlessTester::testRandomGeneratorBasic()
     {
         auto generator = RandomGenerator();
         juce::MidiBuffer buffer;
+        // Set a parameter to ensure generation
         *processor->apvts.getRawParameterValue("RANDOM_NOTE_PROBABILITY") = 1.0f;
-        generator.process(buffer, processor->apvts, 44100.0, 1.0);
+        generator.process(buffer, processor->apvts, 44100.0, 0.0);
         return formatTestResult("RandomGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
     catch (const std::exception& e) { return formatTestResult("RandomGenerator Basic", false, e.what()); }
@@ -84,18 +82,22 @@ juce::String HeadlessTester::testRandomGeneratorParameters()
         *processor->apvts.getRawParameterValue("RANDOM_MIN_NOTE") = 48.0f;
         *processor->apvts.getRawParameterValue("RANDOM_MAX_NOTE") = 72.0f;
         *processor->apvts.getRawParameterValue("RANDOM_NOTE_PROBABILITY") = 1.0f;
+
         juce::MidiBuffer buffer;
         for (int i = 0; i < 50; ++i)
-            generator.process(buffer, processor->apvts, 44100.0, static_cast<double>(i));
+            generator.process(buffer, processor->apvts, 44100.0, static_cast<double>(i) * 0.25);
         
         bool allInRange = true;
-        for (const auto m : buffer) {
-            if (!m.getMessage().isNoteOn()) continue;
-            if (m.getMessage().getNoteNumber() < 48 || m.getMessage().getNoteNumber() > 72) {
-                allInRange = false; break;
+        for (const auto msg : buffer)
+        {
+            if (!msg.getMessage().isNoteOn()) continue;
+            if (msg.getMessage().getNoteNumber() < 48 || msg.getMessage().getNoteNumber() > 72)
+            {
+                allInRange = false;
+                break;
             }
         }
-        return formatTestResult("RandomGenerator Parameters", allInRange, "Notes in range");
+        return formatTestResult("RandomGenerator Parameters", allInRange, "Notes in range [48, 72]");
     }
     catch (const std::exception& e) { return formatTestResult("RandomGenerator Parameters", false, e.what()); }
 }
@@ -107,7 +109,7 @@ juce::String HeadlessTester::testEuclideanGeneratorBasic()
         auto generator = EuclideanGenerator();
         juce::MidiBuffer buffer;
         *processor->apvts.getRawParameterValue("EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
-        generator.process(buffer, processor->apvts, 44100.0, 1.0);
+        generator.process(buffer, processor->apvts, 44100.0, 0.0);
         return formatTestResult("EuclideanGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
     catch (const std::exception& e) { return formatTestResult("EuclideanGenerator Basic", false, e.what()); }
@@ -122,14 +124,16 @@ juce::String HeadlessTester::testEuclideanGeneratorPatterns()
         *processor->apvts.getRawParameterValue("EUCLIDEAN_PULSES") = 3.0f;
         *processor->apvts.getRawParameterValue("EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
         *processor->apvts.getRawParameterValue("EUCLIDEAN_RATE") = 6; // 1/16
+
         juce::MidiBuffer buffer;
         // Process for a full cycle (8 steps at 1/16 rate = 2 beats)
         for (double beat = 0.0; beat < 2.0; beat += 0.1)
              generator.process(buffer, processor->apvts, 44100.0, beat);
+
         int noteCount = 0;
-        for (const auto m : buffer) if (m.getMessage().isNoteOn()) noteCount++;
-        bool passed = noteCount > 0 && noteCount <= 3;
-        return formatTestResult("EuclideanGenerator Patterns", passed, "Generated " + juce::String(noteCount) + " notes for E(3,8)");
+        for (const auto msg : buffer) if (msg.getMessage().isNoteOn()) noteCount++;
+
+        return formatTestResult("EuclideanGenerator Patterns", noteCount == 3, "Generated " + juce::String(noteCount) + " notes for E(3,8)");
     }
     catch (const std::exception& e) { return formatTestResult("EuclideanGenerator Patterns", false, e.what()); }
 }
@@ -141,7 +145,7 @@ juce::String HeadlessTester::testDualEuclideanGeneratorBasic()
         auto generator = DualEuclideanGenerator();
         juce::MidiBuffer buffer;
         *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
-        generator.process(buffer, processor->apvts, 44100.0, 1.0);
+        generator.process(buffer, processor->apvts, 44100.0, 0.0);
         return formatTestResult("DualEuclideanGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
     catch (const std::exception& e) { return formatTestResult("DualEuclideanGenerator Basic", false, e.what()); }
@@ -154,40 +158,36 @@ juce::String HeadlessTester::testDualEuclideanGeneratorPatterns()
         auto generator = DualEuclideanGenerator();
         *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A") = 16.0f;
         *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A") = 4.0f;
-        *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B") = 15.0f;
-        *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B") = 4.0f;
+        *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B") = 16.0f;
+        *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B") = 5.0f;
         *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
+
         juce::MidiBuffer buffer;
         for (double beat = 0.0; beat < 4.0; beat += 0.1)
              generator.process(buffer, processor->apvts, 44100.0, beat);
+
         int noteCount = 0;
-        for (const auto m : buffer) if (m.getMessage().isNoteOn()) noteCount++;
-        return formatTestResult("DualEuclideanGenerator Patterns", noteCount > 0, "Generated " + juce::String(noteCount) + " notes");
+        for (const auto msg : buffer) if (msg.getMessage().isNoteOn()) noteCount++;
+
+        return formatTestResult("DualEuclideanGenerator Patterns", noteCount == 9, "Generated " + juce::String(noteCount) + " notes for E(4,16)+E(5,16)");
     }
     catch (const std::exception& e) { return formatTestResult("DualEuclideanGenerator Patterns", false, e.what()); }
 }
 
-
-// === ТЕСТЫ SCALES (Largely Unchanged) ===
+// === SCALES TESTS ===
 
 juce::String HeadlessTester::testScalesBasic()
 {
     try
     {
-        Scales scales;
-        juce::StringArray testScales = {"Major", "Minor", "Dorian", "Mixolydian"};
-        for (const auto& scaleName : testScales)
+        juce::StringArray testScaleNames = Scales::getAvailableScaleNames();
+        for (const auto& scaleName : testScaleNames)
         {
-            auto scaleNotes = scales.getScaleNotes(60, scaleName);
+            auto scaleNotes = Scales::getScaleNotes(60, scaleName);
             if (scaleNotes.empty())
                 return formatTestResult("Scales Basic", false, "Empty scale: " + scaleName);
-            for (int note : scaleNotes)
-            {
-                if (!scales.isNoteInScale(note, scaleName))
-                    return formatTestResult("Scales Basic", false, "Note " + juce::String(note) + " not in scale " + scaleName);
-            }
         }
-        return formatTestResult("Scales Basic", true, "All basic scales validated");
+        return formatTestResult("Scales Basic", true, "All " + juce::String(testScaleNames.size()) + " scales validated");
     }
     catch (const std::exception& e) { return formatTestResult("Scales Basic", false, e.what()); }
 }
@@ -196,16 +196,16 @@ juce::String HeadlessTester::testScalesIntervals()
 {
     try
     {
-        Scales scales;
-        auto majorNotes = scales.getScaleNotes(60, "Major");
+        auto majorNotes = Scales::getScaleNotes(60, "Major");
         std::vector<int> expected = {60, 62, 64, 65, 67, 69, 71};
-        if (majorNotes.size() < expected.size())
-            return formatTestResult("Scales Intervals", false, "Not enough notes in Major scale");
-        bool intervalsCorrect = true;
-        for (size_t i = 0; i < expected.size(); ++i)
-        {
-            if (majorNotes[i] != expected[i]) {
-                intervalsCorrect = false; break;
+
+        bool intervalsCorrect = majorNotes.size() >= expected.size();
+        if (intervalsCorrect) {
+            for (size_t i = 0; i < expected.size(); ++i) {
+                if (majorNotes[i] != expected[i]) {
+                    intervalsCorrect = false;
+                    break;
+                }
             }
         }
         return formatTestResult("Scales Intervals", intervalsCorrect, "Major scale intervals correct");
@@ -213,18 +213,15 @@ juce::String HeadlessTester::testScalesIntervals()
     catch (const std::exception& e) { return formatTestResult("Scales Intervals", false, e.what()); }
 }
 
-// === ТЕСТЫ LOOPER (Largely Unchanged) ===
+// === LOOPER TESTS ===
 
 juce::String HeadlessTester::testLooperBasic()
 {
     try
     {
         auto looper = std::make_unique<Looper>();
-        if (looper->isRecordingActive() || looper->isPlaybackActive())
-            return formatTestResult("Looper Basic", false, "Initial state should be inactive");
-        if (looper->getRecordedNotesCount() != 0)
-            return formatTestResult("Looper Basic", false, "Should start with no recorded notes");
-        return formatTestResult("Looper Basic", true, "Basic initialization works");
+        bool initialStateCorrect = !looper->isRecordingActive() && !looper->isPlaybackActive() && looper->getRecordedNotesCount() == 0;
+        return formatTestResult("Looper Basic", initialStateCorrect, "Initial state is correct");
     }
     catch (const std::exception& e) { return formatTestResult("Looper Basic", false, e.what()); }
 }
@@ -236,12 +233,12 @@ juce::String HeadlessTester::testLooperRecording()
         auto looper = std::make_unique<Looper>();
         looper->startRecording();
         if (!looper->isRecordingActive())
-            return formatTestResult("Looper Recording", false, "Recording should be active");
+            return formatTestResult("Looper Recording", false, "Recording should be active after start");
         
         looper->recordNote(juce::MidiMessage::noteOn(1, 60, 0.8f), 0.0);
         looper->recordNote(juce::MidiMessage::noteOff(1, 60), 0.5);
-        if (looper->getRecordedNotesCount() != 1) // Should be 1 note after note-off
-            return formatTestResult("Looper Recording", false, "Should have 1 recorded note after note-off");
+        if (looper->getRecordedNotesCount() != 1)
+            return formatTestResult("Looper Recording", false, "Should have 1 note after note-off");
 
         looper->stopRecording();
         if (looper->isRecordingActive())

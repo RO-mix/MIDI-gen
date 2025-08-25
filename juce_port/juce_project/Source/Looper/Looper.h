@@ -10,7 +10,15 @@ enum class LooperMode
 class Looper
 {
 public:
+    struct RecordedNote {
+        juce::MidiMessage message;
+        double beatTime;
+        double durationInBeats = 0.25; // Default duration
+    };
+
     Looper();
+
+    void prepareToPlay(double sampleRate, int samplesPerBlock);
 
     // Основные методы управления
     void recordNote(const juce::MidiMessage& message, double beatTime);
@@ -60,12 +68,6 @@ public:
     void stopRecording();
     void setRecording(bool recording);
 
-public:
-    struct RecordedNote {
-        juce::MidiMessage message;
-        double beatTime;
-        double durationInBeats = 0.25; // Default duration
-    };
 private:
 
     // Режим работы

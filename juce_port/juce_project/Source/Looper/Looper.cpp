@@ -10,6 +10,14 @@ Looper::Looper()
     reverse = false;
 }
 
+void Looper::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    // This method is required by the PluginProcessor but the looper
+    // currently does not need to do any special preparation.
+    // We can add logic here later if needed.
+    juce::ignoreUnused(sampleRate, samplesPerBlock);
+}
+
 void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 {
     if (!isRecording) return;

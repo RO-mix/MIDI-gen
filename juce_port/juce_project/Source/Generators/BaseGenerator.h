@@ -33,6 +33,7 @@ public:
      */
     virtual void setScale(int rootNote, const std::vector<int>& scaleNotes)
     {
+        juce::ignoreUnused(rootNote, scaleNotes);
         // Default implementation does nothing.
         // Derived classes can override this if they use scales.
     }

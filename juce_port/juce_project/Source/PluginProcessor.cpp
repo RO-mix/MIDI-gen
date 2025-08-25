@@ -334,7 +334,7 @@ void CreativeMidiGeneratorAudioProcessor::updateScale()
 
         ScaleType scaleType = static_cast<ScaleType>(scaleChoice);
 
-        activeGenerator->setScale(rootNote, Scales::getNotesInScale(rootNote, scaleType));
+        activeGenerator->setScale(rootNote, Scales::getScaleNotes(rootNote, Scales::getScaleName(scaleType)));
     }
 }
 

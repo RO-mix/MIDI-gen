@@ -1,5 +1,6 @@
 #pragma once
 #include "BaseGenerator.h"
+#include <random>
 
 class RandomGeneratorV2 : public BaseGenerator
 {

@@ -60,11 +60,12 @@ public:
     void stopRecording();
     void setRecording(bool recording);
 
-private:
+public:
     struct RecordedNote {
         juce::MidiMessage message;
         double beatTime;
     };
+private:
 
     // Режим работы
     LooperMode currentMode = LooperMode::MidiLooper;

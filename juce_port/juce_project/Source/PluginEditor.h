@@ -32,6 +32,20 @@ private:
     juce::Label scaleLabel;
     juce::Label titleLabel;
 
+    // Looper GUI Components
+    juce::TextButton recordButton;
+    juce::TextButton playButton;
+    juce::TextButton clearButton;
+    juce::ComboBox looperModeSelector;
+    juce::Slider pitchShiftSlider;
+    juce::Slider playbackSpeedSlider;
+    juce::ToggleButton reverseButton;
+    juce::Label looperTitleLabel;
+    juce::Label looperModeLabel;
+    juce::Label pitchShiftLabel;
+    juce::Label playbackSpeedLabel;
+    juce::Label statusLabel;
+
     // Attachments for parameter automation
     std::unique_ptr<juce::SliderParameterAttachment> minNoteAttachment;
     std::unique_ptr<juce::SliderParameterAttachment> maxNoteAttachment;
@@ -41,6 +55,15 @@ private:
     void setupSliders();
     void setupLabels();
     void setupScaleSelector();
+    void setupLooperControls();
+
+    // Button callbacks
+    void recordButtonClicked();
+    void playButtonClicked();
+    void clearButtonClicked();
+    void looperModeChanged();
+    void updateStatusLabel();
+    void updateButtonStates();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CreativeMidiGeneratorAudioProcessorEditor)
 };

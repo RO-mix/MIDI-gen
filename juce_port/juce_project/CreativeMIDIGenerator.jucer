@@ -1,16 +1,247 @@
-   <JUCEOPTIONS>
-     <JUCEOPTIONS id="JUCE_VST3_CAN_REPLACE_VST2" value="0"/>
-     <JUCEOPTIONS id="JUCE_FORCE_USE_LEGACY_PARAM_IDS" value="1"/>
-     <JUCEOPTIONS id="JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING" value="1"/>
-   </JUCEOPTIONS>
-   <JUCERPROJECT id="CrMG" name="Creative MIDI Generator" projectType="audioplug"
-               version="1.0.0" bundleIdentifier="com.creativemidi.generators"
-               pluginName="CreativeMIDIGenerator" pluginDesc="MIDI Pattern Generator with Euclidean rhythms"
-               pluginManufacturer="Creative MIDI" pluginManufacturerCode="CrMG"
-               pluginCode="CrMG" pluginChannelConfigs="0" pluginCharacteristics="Midi Input, Midi Output"
-               pluginBusConfigurations="" pluginVSTNumMidiInputs="16" pluginVSTNumMidiOutputs="16"
-               pluginRTASDisableBypass="0" pluginRTASDisableMultiMono="0" pluginAAXDisableBypass="0"
-               pluginAAXDisableMultiMono="0" pluginARAIDs="" author="Creative MIDI"
-               website="https://creativemidi.com" licenceDescription="" pluginFormats="buildVST3"
-               pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn"
-               jucerFormatVersion="1">
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="CrMG" name="Creative MIDI Generator" projectType="audioplug"
+              version="1.0.0" bundleIdentifier="com.creativemidi.generators"
+              pluginName="CreativeMIDIGenerator" pluginDesc="MIDI Pattern Generator with Euclidean rhythms"
+              pluginManufacturer="Creative MIDI" pluginManufacturerCode="CrMG"
+              pluginCode="CrMG" pluginChannelConfigs="0" pluginCharacteristics="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn"
+              pluginBusConfigurations="" pluginVSTNumMidiInputs="16" pluginVSTNumMidiOutputs="16"
+              pluginRTASDisableBypass="0" pluginRTASDisableMultiMono="0" pluginAAXDisableBypass="0"
+              pluginAAXDisableMultiMono="0" pluginARAIDs="" author="Creative MIDI"
+              website="https://creativemidi.com" licenceDescription="" pluginFormats="buildVST3,buildStandalone"
+              pluginCharacteristicsValue="pluginIsMidiEffectPlugin,pluginProducesMidiOut,pluginWantsMidiIn"
+              jucerFormatVersion="1" companyName="Creative MIDI" companyWebsite="https://creativemidi.com"
+              companyEmail="" companyCopyright="" defines="" includeBinaryInBundle="0"
+              binaryDataNamespace="" keepSourceCodeOutsideWrapper="0" cppLanguageStandard="17"
+              pluginAAXIdentifier="com.creativemidi.generators.CreativeMIDIGenerator"
+              pluginAAXCategory="AAX_ePlugInCategory_MIDI" pluginVST3Category="MidiFx"
+              pluginVSTCategory="kPlugCategUnknown" pluginAUCategory="kAudioUnitType_MIDIProcessor"
+              pluginRTASCategory="ePlugInCategory_None" pluginVSTLegacyCategory="0"
+              pluginVSTDisableBypass="0" pluginVSTDisableMultiMono="0" pluginAUMainType="'aumi'"
+              pluginAUSubType="CrMG" pluginAUNumMidiInputs="16" pluginAUNumMidiOutputs="16">
+  <MAINGROUP id="B2N8VR" name="CreativeMIDIGenerator">
+    <GROUP id="{B5A5F4A0-1234-5678-9ABC-DEF012345678}" name="Source">
+      <FILE id="B2N8VR02" name="PluginProcessor.cpp" compile="1" resource="0"
+            file="Source/PluginProcessor.cpp"/>
+      <FILE id="B2N8VR03" name="PluginEditor.cpp" compile="1" resource="0"
+            file="Source/PluginEditor.cpp"/>
+      <FILE id="B2N8VR04" name="PluginProcessor.h" compile="0" resource="0"
+            file="Source/PluginProcessor.h"/>
+      <FILE id="B2N8VR05" name="PluginEditor.h" compile="0" resource="0"
+            file="Source/PluginEditor.h"/>
+    </GROUP>
+    <GROUP id="{C6B6G5B1-2345-6789-BCDE-F12345678901}" name="Generators">
+      <FILE id="C6B6G5B102" name="BaseGenerator.cpp" compile="1" resource="0"
+            file="Source/Generators/BaseGenerator.cpp"/>
+      <FILE id="C6B6G5B103" name="BaseGenerator.h" compile="0" resource="0"
+            file="Source/Generators/BaseGenerator.h"/>
+      <FILE id="C6B6G5B104" name="Duration.cpp" compile="1" resource="0"
+            file="Source/Generators/Duration.cpp"/>
+      <FILE id="C6B6G5B105" name="Duration.h" compile="0" resource="0" file="Source/Generators/Duration.h"/>
+      <FILE id="C6B6G5B106" name="DualEuclideanGenerator.cpp" compile="1"
+            resource="0" file="Source/Generators/DualEuclideanGenerator.cpp"/>
+      <FILE id="C6B6G5B107" name="DualEuclideanGenerator.h" compile="0" resource="0"
+            file="Source/Generators/DualEuclideanGenerator.h"/>
+      <FILE id="C6B6G5B108" name="EuclideanGenerator.cpp" compile="1" resource="0"
+            file="Source/Generators/EuclideanGenerator.cpp"/>
+      <FILE id="C6B6G5B109" name="EuclideanGenerator.h" compile="0" resource="0"
+            file="Source/Generators/EuclideanGenerator.h"/>
+      <FILE id="C6B6G5B110" name="RandomGenerator.cpp" compile="1" resource="0"
+            file="Source/Generators/RandomGenerator.cpp"/>
+      <FILE id="C6B6G5B111" name="RandomGenerator.h" compile="0" resource="0"
+            file="Source/Generators/RandomGenerator.h"/>
+    </GROUP>
+    <GROUP id="{D7C7H6C2-3456-7890-CDEF-234567890123}" name="Looper">
+      <FILE id="D7C7H6C202" name="Looper.cpp" compile="1" resource="0" file="Source/Looper/Looper.cpp"/>
+      <FILE id="D7C7H6C203" name="Looper.h" compile="0" resource="0" file="Source/Looper/Looper.h"/>
+    </GROUP>
+    <GROUP id="{E8D8I7D3-4567-8901-DEFA-345678901234}" name="Sequencer">
+      <FILE id="E8D8I7D302" name="Sequencer.h" compile="0" resource="0" file="Source/Sequencer/Sequencer.h"/>
+    </GROUP>
+    <GROUP id="{F9E9J8E4-5678-9012-EFAB-456789012345}" name="Theory">
+      <FILE id="F9E9J8E402" name="Scales.cpp" compile="1" resource="0" file="Source/Theory/Scales.cpp"/>
+      <FILE id="F9E9J8E403" name="Scales.h" compile="0" resource="0" file="Source/Theory/Scales.h"/>
+    </GROUP>
+    <GROUP id="{G0F0K9F5-6789-0123-FABC-567890123456}" name="Tests">
+      <FILE id="G0F0K9F502" name="HeadlessTester.cpp" compile="1" resource="0"
+            file="Source/Tests/HeadlessTester.cpp"/>
+      <FILE id="G0F0K9F503" name="HeadlessTester.h" compile="0" resource="0"
+            file="Source/Tests/HeadlessTester.h"/>
+      <FILE id="G0F0K9F504" name="HeadlessTestRunner.cpp" compile="1" resource="0"
+            file="Source/Tests/HeadlessTestRunner.cpp"/>
+    </GROUP>
+  </MAINGROUP>
+  <JUCEOPTIONS>
+    <JUCEOPTIONS id="JUCE_VST3_CAN_REPLACE_VST2" value="0"/>
+    <JUCEOPTIONS id="JUCE_FORCE_USE_LEGACY_PARAM_IDS" value="1"/>
+    <JUCEOPTIONS id="JUCE_IGNORE_VST3_MISMATCHED_PARAMETER_ID_WARNING" value="1"/>
+    <JUCEOPTIONS id="JUCE_STRICT_REFCOUNTEDPOINTER" value="1"/>
+    <JUCEOPTIONS id="JUCE_VST3_HOST_CROSS_PLATFORM_UID" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WIN32_MIDI" value="1"/>
+    <JUCEOPTIONS id="JUCE_LOG_ASSERTIONS" value="0"/>
+    <JUCEOPTIONS id="JUCE_CHECK_MEMORY_LEAKS" value="0"/>
+    <JUCEOPTIONS id="JUCE_DONT_AUTO_OPEN_MIDI_DEVICES_ON_MOBILE" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_CURL" value="0"/>
+    <JUCEOPTIONS id="JUCE_LOAD_CURL_SYMBOLS_LAZILY" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_WINRT_MIDI" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_FLAC" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_OGGVORBIS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_MP3" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_AIFF" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WAV" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_ZLIB" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_BZIP2" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_LZMA" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_LAME_AUDIO_FORMAT" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WINDOWS_MEDIA_FORMAT" value="1"/>
+    <JUCEOPTIONS id="JUCE_PLUGINHOST_VST3" value="0"/>
+    <JUCEOPTIONS id="JUCE_PLUGINHOST_VST" value="0"/>
+    <JUCEOPTIONS id="JUCE_PLUGINHOST_LV2" value="0"/>
+    <JUCEOPTIONS id="JUCE_PLUGINHOST_AU" value="0"/>
+    <JUCEOPTIONS id="JUCE_PLUGINHOST_LADSPA" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_CDREADER" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_CDBURNER" value="0"/>
+    <JUCEOPTIONS id="JUCE_WEB_BROWSER" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_WIN_WEB_VIEW2" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_EDGE_WEBVIEW2_WITH_WINUI3" value="0"/>
+    <JUCEOPTIONS id="JUCE_ENABLE_LIVE_CONSTANT_EDITOR" value="0"/>
+    <JUCEOPTIONS id="JUCE_REPORT_APP_USAGE" value="0"/>
+    <JUCEOPTIONS id="JUCE_ANALYTICS_CONFIG" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_TRACKTION_MARKETPLACE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_DARK_SILICON" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_OSC" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_RTMIDI" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_CAMERA" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_BLUETOOTH" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_BLE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_QR_CODES" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_BARCODE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_PUSH_NOTIFICATIONS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_APP_UPDATE_CHECKER" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_APP_ICON_BADGE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_SHARING" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_URL_ASSOCIATION" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_APP_SUSPENSION" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_NATIVE_FILE_CHOOSERS" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_NATIVE_TITLEBAR" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_DIRECTWRITE" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_WINRT_WEBVIEW" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WINRT_MIDI" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WIN32_MIDI" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_CORE_IMAGE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_CORE_AUDIO" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_CORE_MIDI" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ALSA" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_JACK" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_KS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ASIO" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WASAPI" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_DIRECTSOUND" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_OBOE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_OPENSLES" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_OPENGL" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_METAL" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_DIRECT2D" value="1"/>
+    <JUCEOPTIONS id="JUCE_USE_VULKAN" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_FREETYPE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_FREETYPE_AMT" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_COREGRAPHICS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_CORETEXT" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_GRAPHICS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_GUI" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_WEB_BROWSER" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_MIDI" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_CAMERA" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_BLE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_NOTIFICATIONS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_ANALYTICS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_SHARING" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_DOCUMENT_PICKER" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_PERMISSIONS" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_CONTENT_SHARING" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_AUDIO_DEVICES" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_BLUETOOTH" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_SHARE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_DOCUMENT" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_FILE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_MEDIA" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_VIDEO" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_APP_LOGO" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_AUDIO" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID_MOBILE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_ANDROID" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_IPHONE" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_MAC" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_LINUX" value="0"/>
+    <JUCEOPTIONS id="JUCE_USE_WINDOWS" value="1"/>
+  </JUCEOPTIONS>
+  <MODULES>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_plugin_client" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="1"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_audio_utils" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_midi_ci" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+    <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0" useGlobalPath="1"/>
+  </MODULES>
+  <LIVE_SETTINGS>
+    <WINDOWS buildEnabled="1" headerPath="" libraryPath="" userNotes="" vst3Path=""
+             aaxPath=""/>
+    <OSX buildEnabled="0" headerPath="" libraryPath="" userNotes="" vst3Path=""
+         aaxPath=""/>
+    <LINUX buildEnabled="0" headerPath="" libraryPath="" userNotes="" vst3Path=""
+           aaxPath=""/>
+  </LIVE_SETTINGS>
+  <EXPORTFORMATS>
+    <VST3 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Creative MIDI Generator"
+                       headerPath="" libraryPath="" userNotes="" vst3Folder="" aaxFolder=""/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Creative MIDI Generator"
+                       headerPath="" libraryPath="" userNotes="" vst3Folder="" aaxFolder=""/>
+      </CONFIGURATIONS>
+    </VST3>
+    <STANDALONE targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" targetName="Creative MIDI Generator"
+                       headerPath="" libraryPath="" userNotes="" vst3Folder="" aaxFolder=""/>
+        <CONFIGURATION isDebug="0" name="Release" targetName="Creative MIDI Generator"
+                       headerPath="" libraryPath="" userNotes="" vst3Folder="" aaxFolder=""/>
+      </CONFIGURATIONS>
+    </STANDALONE>
+    <VS2022 targetFolder="Builds/VisualStudio2022">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug"/>
+        <CONFIGURATION isDebug="0" name="Release"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../juce"/>
+        <MODULEPATH id="juce_audio_devices" path="../../juce"/>
+        <MODULEPATH id="juce_audio_formats" path="../../juce"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="../../juce"/>
+        <MODULEPATH id="juce_audio_processors" path="../../juce"/>
+        <MODULEPATH id="juce_audio_utils" path="../../juce"/>
+        <MODULEPATH id="juce_core" path="../../juce"/>
+        <MODULEPATH id="juce_data_structures" path="../../juce"/>
+        <MODULEPATH id="juce_dsp" path="../../juce"/>
+        <MODULEPATH id="juce_events" path="../../juce"/>
+        <MODULEPATH id="juce_graphics" path="../../juce"/>
+        <MODULEPATH id="juce_gui_basics" path="../../juce"/>
+        <MODULEPATH id="juce_gui_extra" path="../../juce"/>
+        <MODULEPATH id="juce_midi_ci" path="../../juce"/>
+        <MODULEPATH id="juce_opengl" path="../../juce"/>
+        <MODULEPATH id="juce_osc" path="../../juce"/>
+      </MODULEPATHS>
+    </VS2022>
+  </EXPORTFORMATS>
+</JUCERPROJECT>

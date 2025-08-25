@@ -33,10 +33,14 @@
 #define JUCE_MODULE_AVAILABLE_juce_audio_utils              1
 #define JUCE_MODULE_AVAILABLE_juce_core                     1
 #define JUCE_MODULE_AVAILABLE_juce_data_structures          1
+#define JUCE_MODULE_AVAILABLE_juce_dsp                      1
 #define JUCE_MODULE_AVAILABLE_juce_events                   1
 #define JUCE_MODULE_AVAILABLE_juce_graphics                 1
 #define JUCE_MODULE_AVAILABLE_juce_gui_basics               1
 #define JUCE_MODULE_AVAILABLE_juce_gui_extra                1
+#define JUCE_MODULE_AVAILABLE_juce_midi_ci                  1
+#define JUCE_MODULE_AVAILABLE_juce_opengl                   1
+#define JUCE_MODULE_AVAILABLE_juce_osc                      1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 
@@ -114,7 +118,11 @@
 // juce_audio_plugin_client flags:
 
 #ifndef    JUCE_VST3_CAN_REPLACE_VST2
- //#define JUCE_VST3_CAN_REPLACE_VST2 1
+ #define JUCE_VST3_CAN_REPLACE_VST2 0
+#endif
+
+#ifndef    JucePlugin_Build_VST
+ #define JucePlugin_Build_VST 0
 #endif
 
 #ifndef    JUCE_FORCE_USE_LEGACY_PARAM_IDS
@@ -224,6 +232,29 @@
 
 #ifndef    JUCE_ENABLE_ALLOCATION_HOOKS
  //#define JUCE_ENABLE_ALLOCATION_HOOKS 0
+#endif
+
+//==============================================================================
+// juce_dsp flags:
+
+#ifndef    JUCE_ASSERTION_FIRFILTER
+ //#define JUCE_ASSERTION_FIRFILTER 1
+#endif
+
+#ifndef    JUCE_DSP_USE_INTEL_MKL
+ //#define JUCE_DSP_USE_INTEL_MKL 0
+#endif
+
+#ifndef    JUCE_DSP_USE_SHARED_FFTW
+ //#define JUCE_DSP_USE_SHARED_FFTW 0
+#endif
+
+#ifndef    JUCE_DSP_USE_STATIC_FFTW
+ //#define JUCE_DSP_USE_STATIC_FFTW 0
+#endif
+
+#ifndef    JUCE_DSP_ENABLE_SNAP_TO_ZERO
+ //#define JUCE_DSP_ENABLE_SNAP_TO_ZERO 1
 #endif
 
 //==============================================================================

@@ -2,6 +2,7 @@
 #include "../Generators/EuclideanGenerator.h"
 #include <climits>
 #include "../Generators/DualEuclideanGenerator.h"
+#include "../Looper/Looper.h"
 
 HeadlessTester::HeadlessTester()
 {
@@ -21,6 +22,16 @@ juce::StringArray HeadlessTester::runAllTests()
     results.add(testRandomGeneratorParameters());
     results.add(testScalesBasic());
     results.add(testScalesIntervals());
+    results.add(testLooperBasic());
+    results.add(testLooperRecording());
+    results.add(testLooperPlayback());
+    results.add(testLooperLoopPoints());
+    results.add(testLooperModes());
+    results.add(testLooperEffects());
+    results.add(testLooperEdgeCases());
+    results.add(testLooperComplexPatterns());
+    results.add(testLooperIntegration());
+    results.add(testLooperPerformance());
 
     // Дополнительные тесты
     if (testRandomDistribution())
@@ -522,6 +533,518 @@ bool HeadlessTester::testParameterRanges()
         return false;
 
     return true;
+}
+
+// === ТЕСТЫ LOOPER ===
+
+juce::String HeadlessTester::testLooperBasic()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Проверяем начальное состояние
+        if (looper->isRecordingActive() || looper->isPlaybackActive())
+        {
+            return formatTestResult("Looper Basic", false, "Initial state should be inactive");
+        }
+
+        if (looper->getRecordedNotesCount() != 0)
+        {
+            return formatTestResult("Looper Basic", false, "Should start with no recorded notes");
+        }
+
+        return formatTestResult("Looper Basic", true, "Basic initialization works");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Basic", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperRecording()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Начинаем запись
+        looper->startRecording();
+
+        if (!looper->isRecordingActive())
+        {
+            return formatTestResult("Looper Recording", false, "Recording should be active");
+        }
+
+        // Записываем несколько нот
+        juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, 60, 0.8f);
+        juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, 60);
+
+        looper->recordNote(noteOn, 0.0);
+        looper->recordNote(noteOff, 0.5);
+
+        if (looper->getRecordedNotesCount() != 2)
+        {
+            return formatTestResult("Looper Recording", false,
+                "Should have 2 recorded notes, got " + juce::String(looper->getRecordedNotesCount()));
+        }
+
+        // Останавливаем запись
+        looper->stopRecording();
+
+        if (looper->isRecordingActive())
+        {
+            return formatTestResult("Looper Recording", false, "Recording should be stopped");
+        }
+
+        return formatTestResult("Looper Recording", true, "Recording functionality works");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Recording", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperPlayback()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Записываем паттерн
+        looper->startRecording();
+        juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, 60, 0.8f);
+        looper->recordNote(noteOn, 0.0);
+        looper->stopRecording();
+
+        // Начинаем воспроизведение
+        looper->startPlayback();
+
+        if (!looper->isPlaybackActive())
+        {
+            return formatTestResult("Looper Playback", false, "Playback should be active");
+        }
+
+        // Получаем буфер воспроизведения
+        juce::MidiBuffer buffer = looper->getPlaybackBuffer(44100, 0.0, 1.0);
+
+        if (buffer.isEmpty())
+        {
+            return formatTestResult("Looper Playback", false, "Playback buffer should not be empty");
+        }
+
+        // Останавливаем воспроизведение
+        looper->stopPlayback();
+
+        if (looper->isPlaybackActive())
+        {
+            return formatTestResult("Looper Playback", false, "Playback should be stopped");
+        }
+
+        return formatTestResult("Looper Playback", true, "Playback functionality works");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Playback", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperLoopPoints()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Устанавливаем точки лупа
+        looper->setLoopPoints(0.0, 4.0);
+
+        if (looper->getLoopStart() != 0.0 || looper->getLoopEnd() != 4.0)
+        {
+            return formatTestResult("Looper Loop Points", false, "Loop points not set correctly");
+        }
+
+        // Записываем ноту в начале лупа
+        looper->startRecording();
+        juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, 60, 0.8f);
+        looper->recordNote(noteOn, 0.0);
+        looper->stopRecording();
+
+        // Начинаем воспроизведение
+        looper->startPlayback();
+
+        // Проверяем воспроизведение в начале лупа
+        juce::MidiBuffer buffer = looper->getPlaybackBuffer(44100, 0.0, 0.1);
+
+        if (buffer.isEmpty())
+        {
+            return formatTestResult("Looper Loop Points", false, "Should play note at loop start");
+        }
+
+        // Проверяем воспроизведение в конце лупа (должно быть пустым если нота только в начале)
+        juce::MidiBuffer buffer2 = looper->getPlaybackBuffer(44100, 3.9, 4.1);
+
+        // Очищаем лупер
+        looper->clear();
+
+        if (looper->getRecordedNotesCount() != 0)
+        {
+            return formatTestResult("Looper Loop Points", false, "Clear should remove all notes");
+        }
+
+        return formatTestResult("Looper Loop Points", true, "Loop points functionality works");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Loop Points", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperModes()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Проверяем переключение режимов
+        looper->setMode(LooperMode::MidiLooper);
+        if (looper->getMode() != LooperMode::MidiLooper)
+        {
+            return formatTestResult("Looper Modes", false, "Failed to set MIDI Looper mode");
+        }
+
+        looper->setMode(LooperMode::GenerationLooper);
+        if (looper->getMode() != LooperMode::GenerationLooper)
+        {
+            return formatTestResult("Looper Modes", false, "Failed to set Generation Looper mode");
+        }
+
+        // Проверяем что данные очищаются при смене режима
+        looper->setMode(LooperMode::MidiLooper);
+        looper->startRecording();
+        juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, 60, 0.8f);
+        looper->recordNote(noteOn, 0.0);
+        looper->stopRecording();
+
+        if (looper->getRecordedNotesCount() == 0)
+        {
+            return formatTestResult("Looper Modes", false, "No notes recorded in MIDI mode");
+        }
+
+        // Меняем режим и проверяем что данные очистились
+        looper->setMode(LooperMode::GenerationLooper);
+        if (looper->getRecordedNotesCount() != 0)
+        {
+            return formatTestResult("Looper Modes", false, "Data not cleared when switching modes");
+        }
+
+        return formatTestResult("Looper Modes", true, "Mode switching works correctly");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Modes", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperEffects()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Устанавливаем параметры эффектов
+        looper->setPitchShift(2); // +2 полутонов
+        looper->setPlaybackSpeed(1.5f); // Ускорение
+        looper->setReverse(true); // Реверс
+
+        // Проверяем геттеры
+        if (looper->getPitchShift() != 2)
+        {
+            return formatTestResult("Looper Effects", false, "Pitch shift not set correctly");
+        }
+
+        if (looper->getPlaybackSpeed() != 1.5f)
+        {
+            return formatTestResult("Looper Effects", false, "Playback speed not set correctly");
+        }
+
+        if (!looper->getReverse())
+        {
+            return formatTestResult("Looper Effects", false, "Reverse not set correctly");
+        }
+
+        // Тестируем с генерацией буфера
+        juce::MidiBuffer testBuffer;
+        testBuffer.addEvent(juce::MidiMessage::noteOn(1, 60, 0.8f), 0);
+        testBuffer.addEvent(juce::MidiMessage::noteOff(1, 60), 22050); // 0.5 сек при 44100 Hz
+
+        looper->setMode(LooperMode::GenerationLooper);
+        looper->startRecording();
+        looper->recordMidiBuffer(testBuffer, 0.0);
+        looper->stopRecording();
+
+        // Проверяем воспроизведение с эффектами
+        looper->startPlayback();
+        juce::MidiBuffer playbackBuffer = looper->getPlaybackBuffer(44100, 0.0, 1.0);
+
+        if (playbackBuffer.isEmpty())
+        {
+            return formatTestResult("Looper Effects", false, "Playback buffer with effects is empty");
+        }
+
+        return formatTestResult("Looper Effects", true, "Effects functionality works");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Effects", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperEdgeCases()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Тест 1: Пустой буфер
+        auto emptyBuffer = looper->getPlaybackBuffer(44100, 0.0, 1.0);
+        if (!emptyBuffer.isEmpty())
+        {
+            return formatTestResult("Looper Edge Cases", false, "Empty buffer should return empty playback");
+        }
+
+        // Тест 2: Нулевая длительность
+        looper->setLoopPoints(0.0, 0.0);
+        auto zeroDurationBuffer = looper->getPlaybackBuffer(44100, 0.0, 1.0);
+        if (!zeroDurationBuffer.isEmpty())
+        {
+            return formatTestResult("Looper Edge Cases", false, "Zero duration should return empty buffer");
+        }
+
+        // Тест 3: Экстремальные значения эффектов
+        looper->setPitchShift(12); // Максимум
+        looper->setPlaybackSpeed(0.25f); // Минимум
+
+        // Тест 4: Многократное переключение режимов
+        for (int i = 0; i < 10; ++i)
+        {
+            looper->setMode(LooperMode::MidiLooper);
+            looper->setMode(LooperMode::GenerationLooper);
+        }
+
+        // Тест 5: Запись без запуска воспроизведения
+        looper->startRecording();
+        juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, 60, 0.8f);
+        looper->recordNote(noteOn, 0.0);
+        looper->stopRecording();
+
+        if (looper->isPlaybackActive())
+        {
+            return formatTestResult("Looper Edge Cases", false, "Recording should not auto-start playback");
+        }
+
+        return formatTestResult("Looper Edge Cases", true, "All edge cases handled correctly");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Edge Cases", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperComplexPatterns()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Тест 1: Сложный полиритмический паттерн
+        looper->startRecording();
+
+        // Создаем сложный паттерн с разными длительностями и каналами
+        struct NoteEvent {
+            double time;
+            int note;
+            int channel;
+            bool isNoteOn;
+        };
+
+        std::vector<NoteEvent> complexPattern = {
+            {0.0, 60, 1, true},   // C4
+            {0.25, 64, 2, true},  // E4
+            {0.5, 67, 1, true},   // G4
+            {0.75, 72, 2, true},  // C5
+            {1.0, 60, 1, false},  // Note off
+            {1.25, 64, 2, false},
+            {1.5, 67, 1, false},
+            {1.75, 72, 2, false},
+            {2.0, 60, 1, true},   // Повтор
+            {2.5, 64, 2, true},
+            {3.0, 67, 1, true},
+            {3.5, 72, 2, true}
+        };
+
+        for (const auto& event : complexPattern)
+        {
+            juce::MidiMessage msg = event.isNoteOn ?
+                juce::MidiMessage::noteOn(event.channel, event.note, 0.8f) :
+                juce::MidiMessage::noteOff(event.channel, event.note);
+            looper->recordNote(msg, event.time);
+        }
+
+        looper->stopRecording();
+
+        if (looper->getRecordedNotesCount() != complexPattern.size())
+        {
+            return formatTestResult("Looper Complex Patterns", false,
+                "Complex pattern not recorded correctly. Expected: " +
+                juce::String(complexPattern.size()) + ", Got: " +
+                juce::String(looper->getRecordedNotesCount()));
+        }
+
+        // Тест 2: Воспроизведение с эффектами
+        looper->setPitchShift(7); // Пентатоника вверх
+        looper->setPlaybackSpeed(2.0f); // Двойная скорость
+        looper->startPlayback();
+
+        auto playbackBuffer = looper->getPlaybackBuffer(44100, 0.0, 2.0);
+        if (playbackBuffer.isEmpty())
+        {
+            return formatTestResult("Looper Complex Patterns", false, "Complex pattern playback failed");
+        }
+
+        return formatTestResult("Looper Complex Patterns", true, "Complex patterns handled correctly");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Complex Patterns", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperIntegration()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Тест 1: MIDI Looper режим - интеграция с генераторами
+        looper->setMode(LooperMode::MidiLooper);
+        looper->startRecording();
+
+        // Симулируем генерацию нот как от реального генератора
+        for (int i = 0; i < 16; ++i) // 16 шагов
+        {
+            double beatTime = static_cast<double>(i) * 0.25; // 16th notes
+            int note = 60 + (i % 7); // Простая мелодия
+
+            juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, note, 0.8f);
+            juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, note);
+
+            looper->recordNote(noteOn, beatTime);
+            looper->recordNote(noteOff, beatTime + 0.2); // Короткие ноты
+        }
+
+        looper->stopRecording();
+
+        // Тест 2: Generation Looper режим - работа с буфером
+        looper->setMode(LooperMode::GenerationLooper);
+
+        juce::MidiBuffer genBuffer;
+        genBuffer.addEvent(juce::MidiMessage::noteOn(1, 60, 0.8f), 0);
+        genBuffer.addEvent(juce::MidiMessage::noteOff(1, 60), 22050);
+
+        looper->startRecording();
+        looper->recordMidiBuffer(genBuffer, 0.0);
+        looper->stopRecording();
+
+        if (looper->getRecordedNotesCount() == 0)
+        {
+            return formatTestResult("Looper Integration", false, "Generation mode recording failed");
+        }
+
+        // Тест 3: Переключение между режимами во время работы
+        looper->startPlayback();
+        bool wasPlaying = looper->isPlaybackActive();
+
+        looper->setMode(LooperMode::MidiLooper);
+        bool stillPlaying = looper->isPlaybackActive();
+
+        if (wasPlaying != stillPlaying)
+        {
+            return formatTestResult("Looper Integration", false, "Mode switch should preserve playback state");
+        }
+
+        return formatTestResult("Looper Integration", true, "Integration scenarios work correctly");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Integration", false, e.what());
+    }
+}
+
+juce::String HeadlessTester::testLooperPerformance()
+{
+    try
+    {
+        auto looper = std::make_unique<Looper>();
+
+        // Тест 1: Производительность с большим количеством нот
+        looper->startRecording();
+        const int noteCount = 1000;
+
+        for (int i = 0; i < noteCount; ++i)
+        {
+            double time = static_cast<double>(i) * 0.01; // 10ms intervals
+            int note = 60 + (i % 24); // 2 октавы
+            juce::MidiMessage noteOn = juce::MidiMessage::noteOn(1, note, 0.8f);
+            looper->recordNote(noteOn, time);
+        }
+
+        looper->stopRecording();
+
+        if (looper->getRecordedNotesCount() != noteCount)
+        {
+            return formatTestResult("Looper Performance", false,
+                "Performance test failed. Expected: " + juce::String(noteCount) +
+                ", Got: " + juce::String(looper->getRecordedNotesCount()));
+        }
+
+        // Тест 2: Быстрое воспроизведение буфера
+        looper->startPlayback();
+        auto startTime = juce::Time::getMillisecondCounter();
+
+        for (int i = 0; i < 100; ++i)
+        {
+            auto buffer = looper->getPlaybackBuffer(44100, 0.0, 1.0);
+            if (buffer.isEmpty())
+            {
+                return formatTestResult("Looper Performance", false, "Performance buffer was empty");
+            }
+        }
+
+        auto endTime = juce::Time::getMillisecondCounter();
+        auto duration = endTime - startTime;
+
+        // Должен выполняться менее чем за 100мс для 100 итераций
+        if (duration > 100)
+        {
+            return formatTestResult("Looper Performance", false,
+                "Performance too slow: " + juce::String(duration) + "ms");
+        }
+
+        // Тест 3: Память - проверка отсутствия утечек
+        looper->clear();
+        if (looper->getRecordedNotesCount() != 0)
+        {
+            return formatTestResult("Looper Performance", false, "Memory cleanup failed");
+        }
+
+        return formatTestResult("Looper Performance", true,
+            "Performance test passed. Processed " + juce::String(noteCount) +
+            " notes in " + juce::String(duration) + "ms");
+    }
+    catch (const std::exception& e)
+    {
+        return formatTestResult("Looper Performance", false, e.what());
+    }
 }
 
 // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===

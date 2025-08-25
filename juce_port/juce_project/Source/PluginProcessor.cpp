@@ -14,6 +14,13 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
 {
     // Инициализация генератора
     randomGenerator_ = std::make_unique<RandomGenerator>();
+    
+    // Передаем начальные параметры в генератор
+    randomGenerator_->setGenerationParameters(generationParams_);
+
+    // Инициализация лупера
+    looper_ = std::make_unique<Looper>();
+    looper_->setMode(LooperMode::GenerationLooper); // По умолчанию в режиме Generation Looper
 }
 
 CreativeMidiGeneratorAudioProcessor::~CreativeMidiGeneratorAudioProcessor()
@@ -88,7 +95,8 @@ void CreativeMidiGeneratorAudioProcessor::prepareToPlay (double sampleRate, int 
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
     sampleRate_ = sampleRate;
-    samplesPerBeat_ = sampleRate / (120.0 / 60.0); // 120 BPM -> beats per second
+    currentBpm_ = getCurrentBpm();
+    samplesPerBeat_ = sampleRate / (currentBpm_ / 60.0);
     currentBeat_ = 0.0;
 }
 
@@ -140,47 +148,105 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
 
-    // Генерация MIDI событий
-    if (randomGenerator_ != nullptr)
+    // Генерация MIDI событий с интеграцией лупера
+    if (randomGenerator_ != nullptr && looper_ != nullptr)
     {
         // Вычисляем количество бит в этом блоке
         double beatsInBlock = static_cast<double>(numSamples) / samplesPerBeat_;
+        double blockStartTime = currentBeat_;
+        double blockEndTime = currentBeat_ + beatsInBlock;
 
         // Генерируем события на основе текущего ритма
         auto [events, nextBeatOffset] = randomGenerator_->generate(currentBeat_);
 
-        // Добавляем MIDI события в буфер
+        // Создаем буфер для сгенерированных событий
+        juce::MidiBuffer generatedBuffer;
+
+        // Добавляем MIDI события в буфер генерации
         for (const auto& [midiMessage, duration] : events)
         {
             // Вычисляем позицию в сэмплах для этого MIDI события
-            // Простая реализация - добавляем событие в начало блока
             int samplePosition = 0;
 
-            // Добавляем MIDI сообщение в буфер
-            midiMessages.addEvent(midiMessage, samplePosition);
+            // Добавляем MIDI сообщение в буфер генерации
+            generatedBuffer.addEvent(midiMessage, samplePosition);
 
             // Если есть длительность, добавляем note_off
             if (duration > 0.0)
             {
-                // Вычисляем позицию для note_off
                 int noteOffSample = static_cast<int>(duration * samplesPerBeat_);
                 if (noteOffSample < numSamples)
                 {
                     auto noteOff = juce::MidiMessage::noteOff(midiMessage.getChannel(),
                                                              midiMessage.getNoteNumber());
-                    midiMessages.addEvent(noteOff, noteOffSample);
+                    generatedBuffer.addEvent(noteOff, noteOffSample);
                 }
             }
         }
 
+        // Интеграция с лупером
+        juce::MidiBuffer finalOutput;
+
+        if (looper_->getMode() == LooperMode::GenerationLooper)
+        {
+            // Режим Generation Looper: захватываем вывод генератора
+            if (looper_->isRecordingActive())
+            {
+                looper_->recordMidiBuffer(generatedBuffer, blockStartTime);
+            }
+
+            // Получаем выход из лупера
+            if (looper_->isPlaybackActive())
+            {
+                finalOutput = looper_->getPlaybackBuffer(numSamples, blockStartTime, blockEndTime);
+            }
+            else
+            {
+                // Если лупер не воспроизводит, передаем оригинальные события
+                finalOutput = generatedBuffer;
+            }
+        }
+        else if (looper_->getMode() == LooperMode::MidiLooper)
+        {
+            // Режим MIDI Looper: записываем оригинальные события
+            if (looper_->isRecordingActive())
+            {
+                for (const auto& event : generatedBuffer)
+                {
+                    double eventTime = blockStartTime + (event.samplePosition / samplesPerBeat_);
+                    looper_->recordNote(event.getMessage(), eventTime);
+                }
+            }
+
+            // Получаем выход из лупера
+            if (looper_->isPlaybackActive())
+            {
+                finalOutput = looper_->getPlaybackBuffer(numSamples, blockStartTime, blockEndTime);
+            }
+            else
+            {
+                finalOutput = generatedBuffer;
+            }
+        }
+
+        // Добавляем финальный выход в MIDI буфер плагина
+        for (const auto& event : finalOutput)
+        {
+            midiMessages.addEvent(event.getMessage(), event.samplePosition);
+        }
+
         // Обновляем текущую позицию
         currentBeat_ += beatsInBlock;
-
+    
         // Сбрасываем счетчик если он стал слишком большим
         if (currentBeat_ > 1000.0)
             currentBeat_ = 0.0;
     }
-
+    
+    // Обновляем BPM и samplesPerBeat_ на каждом блоке для синхронизации с хостом
+    currentBpm_ = getCurrentBpm();
+    samplesPerBeat_ = sampleRate_ / (currentBpm_ / 60.0);
+    
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...
     // Make sure to reset the state if your inner loop is processing
@@ -203,6 +269,19 @@ bool CreativeMidiGeneratorAudioProcessor::hasEditor() const
 juce::AudioProcessorEditor* CreativeMidiGeneratorAudioProcessor::createEditor()
 {
     return new CreativeMidiGeneratorAudioProcessorEditor (*this);
+}
+
+double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
+{
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto position = playHead->getPosition())
+        {
+            if (auto bpm = position->getBpm())
+                return *bpm;
+        }
+    }
+    return 120.0; // Значение по умолчанию
 }
 
 //==============================================================================

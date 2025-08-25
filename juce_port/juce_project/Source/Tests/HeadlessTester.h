@@ -39,6 +39,16 @@ private:
     juce::String testEuclideanGeneratorPatterns();
     juce::String testDualEuclideanGeneratorBasic();
     juce::String testDualEuclideanGeneratorPatterns();
+    juce::String testLooperBasic();
+    juce::String testLooperRecording();
+    juce::String testLooperPlayback();
+    juce::String testLooperLoopPoints();
+    juce::String testLooperModes();
+    juce::String testLooperEffects();
+    juce::String testLooperEdgeCases();
+    juce::String testLooperComplexPatterns();
+    juce::String testLooperIntegration();
+    juce::String testLooperPerformance();
 
     // Вспомогательные методы
     std::vector<int> collectGeneratedNotes(std::unique_ptr<BaseGenerator> generator, int numBeats);

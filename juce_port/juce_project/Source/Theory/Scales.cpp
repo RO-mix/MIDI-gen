@@ -21,6 +21,29 @@ std::vector<int> Scales::hungarianMinor = {0, 2, 3, 6, 7, 8, 11};
 std::vector<int> Scales::phrygianDominant = {0, 1, 4, 5, 7, 8, 10};
 std::vector<int> Scales::enigmatic = {0, 1, 4, 6, 8, 10, 11};
 
+// Карта соответствия ScaleType и имен
+const std::map<ScaleType, juce::String> Scales::scaleTypeToName = {
+    {ScaleType::Major, "Major"},
+    {ScaleType::Minor, "Minor"},
+    {ScaleType::Dorian, "Dorian"},
+    {ScaleType::Phrygian, "Phrygian"},
+    {ScaleType::Lydian, "Lydian"},
+    {ScaleType::Mixolydian, "Mixolydian"},
+    {ScaleType::Locrian, "Locrian"},
+    {ScaleType::HarmonicMinor, "Harmonic Minor"},
+    {ScaleType::MelodicMinor, "Melodic Minor"},
+    {ScaleType::MajorPentatonic, "Major Pentatonic"},
+    {ScaleType::MinorPentatonic, "Minor Pentatonic"},
+    {ScaleType::Blues, "Blues"},
+    {ScaleType::WholeTone, "Whole Tone"},
+    {ScaleType::Chromatic, "Chromatic"},
+    {ScaleType::Hirajoshi, "Hirajoshi"},
+    {ScaleType::Iwato, "Iwato"},
+    {ScaleType::HungarianMinor, "Hungarian Minor"},
+    {ScaleType::PhrygianDominant, "Phrygian Dominant"},
+    {ScaleType::Enigmatic, "Enigmatic"}
+};
+
 // Карта соответствия имен ладов и их интервалов
 const std::map<juce::String, std::vector<int>> Scales::scaleIntervals = {
     {"Major", major},
@@ -100,4 +123,49 @@ juce::StringArray Scales::getAvailableScaleNames()
         names.add(pair.first);
     }
     return names;
+}
+
+juce::String Scales::getScaleName(ScaleType type)
+{
+    auto it = scaleTypeToName.find(type);
+    if (it != scaleTypeToName.end()) {
+        return it->second;
+    }
+    return "Major"; // значение по умолчанию
+}
+
+ScaleType Scales::getScaleTypeFromInt(int type)
+{
+    if (type >= 0 && type <= static_cast<int>(ScaleType::Enigmatic)) {
+        return static_cast<ScaleType>(type);
+    }
+    return ScaleType::Major; // значение по умолчанию
+}
+
+std::vector<int> Scales::getChordNotes(int rootNote, ScaleType scaleType, int chordDegree)
+{
+    // Получаем имя лада
+    juce::String scaleName = getScaleName(scaleType);
+    
+    // Получаем интервалы лада
+    auto it = scaleIntervals.find(scaleName);
+    if (it == scaleIntervals.end())
+        return {};
+
+    const auto& scaleNotes = it->second;
+    if (scaleNotes.empty() || chordDegree < 0)
+        return {};
+
+    // Для простоты создаем трезвучие: корень, терция, квинта
+    // Индексы в ладу: 0 (корень), 2 (терция), 4 (квинта)
+    std::vector<int> chordNoteIndices = {0, 2, 4};
+    
+    std::vector<int> chordNotes;
+    for (int indexOffset : chordNoteIndices) {
+        int noteIndex = (chordDegree + indexOffset) % scaleNotes.size();
+        int note = rootNote + scaleNotes[noteIndex];
+        chordNotes.push_back(note);
+    }
+    
+    return chordNotes;
 }

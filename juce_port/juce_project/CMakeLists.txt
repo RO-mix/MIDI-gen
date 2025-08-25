@@ -14,6 +14,7 @@ set(CORE_SOURCE_FILES
     Source/Generators/DualEuclideanGenerator.cpp
     Source/Generators/Duration.cpp
     Source/Theory/Scales.cpp
+    Source/Looper/Looper.cpp
 )
 
 # --- Plugin Target ---

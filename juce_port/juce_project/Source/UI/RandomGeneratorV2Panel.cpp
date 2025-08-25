@@ -22,7 +22,8 @@ RandomGeneratorV2Panel::RandomGeneratorV2Panel(CreativeMidiGeneratorAudioProcess
     // Burst Pattern
     for (int i = 0; i < 8; ++i)
     {
-        auto slider = std::make_unique<juce::Slider>(juce::Slider::LinearBarVertical);
+        auto slider = std::make_unique<juce::Slider>();
+        slider->setSliderStyle(juce::Slider::LinearBarVertical);
         addAndMakeVisible(*slider);
         juce::String paramId = "RANDOM_V2_BURST_PATTERN_" + juce::String(i);
         burstPatternAttachments.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, paramId, *slider));

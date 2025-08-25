@@ -196,7 +196,6 @@ void CreativeMidiGeneratorAudioProcessor::setStateInformation (const void* data,
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
 {
-    // TODO: Implement logic to toggle recording, possibly based on APVTS state
     if (looper_)
     {
         if (looper_->isRecordingActive())
@@ -208,7 +207,6 @@ void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 {
-    // TODO: Implement logic to toggle playback
     if (looper_)
     {
         if (looper_->isPlaybackActive())
@@ -324,7 +322,7 @@ void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
     auto generatorChoice = static_cast<int>(apvts.getRawParameterValue("GENERATOR_TYPE")->load());
     activeGenerator = availableGenerators[generatorChoice].get();
-    updateScale(); // Update scale for the newly selected generator
+    updateScale();
 }
 
 void CreativeMidiGeneratorAudioProcessor::updateScale()
@@ -334,7 +332,6 @@ void CreativeMidiGeneratorAudioProcessor::updateScale()
         auto rootNote = static_cast<int>(apvts.getRawParameterValue("ROOT_NOTE")->load());
         auto scaleChoice = static_cast<int>(apvts.getRawParameterValue("SCALE")->load());
 
-        // This is a simplified mapping. A more robust solution would be better.
         ScaleType scaleType = static_cast<ScaleType>(scaleChoice);
 
         activeGenerator->setScale(rootNote, Scales::getNotesInScale(rootNote, scaleType));

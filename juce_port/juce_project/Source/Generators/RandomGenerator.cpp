@@ -110,19 +110,33 @@ void RandomGenerator::setScale(int rootNote, const std::vector<int>& scaleNotes)
     scaleNotes_ = scaleNotes;
 }
 
-int RandomGenerator::calculateVelocity(float bias, int maxVelocity) const
+int RandomGenerator::calculateVelocity(float bias, int maxVelocity)
 {
-    // Simple biased random, can be improved with beta distribution etc.
+    // A more musical velocity curve. Bias towards the extremes is less linear.
     float r = distribution_(randomEngine_);
-    float biasedRandom = std::pow(r, 1.0f - bias);
-    return juce::jlimit(1, maxVelocity, static_cast<int>(biasedRandom * maxVelocity));
+    float skewed_r = juce::jmap(r, 0.0f, 1.0f, 1.0f - bias, bias);
+    float curved_r = std::pow(skewed_r, 2.0f); // Exponential curve
+
+    // Add some slight random variation
+    float variation = 1.0f + (distribution_(randomEngine_) - 0.5f) * 0.2f; // +/- 10%
+
+    return juce::jlimit(1, maxVelocity, static_cast<int>(curved_r * maxVelocity * variation));
 }
 
-float RandomGenerator::getRandomDuration(float bias) const
+float RandomGenerator::getRandomDuration(float bias)
 {
-    // Simple biased random, can be improved.
-    float r = distribution_(randomEngine_);
-    float biasedRandom = std::pow(r, 1.0f - bias);
-    // Returns duration in beats, e.g., from 0.05 to 2 beats
-    return 0.05f + biasedRandom * 1.95f;
+    // More musical duration. Bias affects the center of a distribution.
+    float r1 = distribution_(randomEngine_);
+    float r2 = distribution_(randomEngine_);
+
+    // Bates distribution (sum of uniform distributions) to create a more normal-like curve
+    float bates = (r1 + r2) / 2.0f;
+
+    // Bias shifts the center of this distribution
+    float biased_center = juce::jmap(bias, 0.0f, 1.0f, 2.0f, 0.1f); // Long to short
+    float range = 1.5f;
+
+    float duration = biased_center + (bates - 0.5f) * range;
+
+    return juce::jlimit(0.05f, 4.0f, duration); // Limit duration from a 64th note to a whole note
 }

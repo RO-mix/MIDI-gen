@@ -18,6 +18,7 @@ private:
     // Internal state
     int currentStep_ = -1;
     double lastBeat_ = -1.0;
+    int lastDeviation_ = 0;
     std::vector<bool> pattern_;
     std::vector<int> scaleNotes_;
     int rootNote_ = 0;

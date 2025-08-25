@@ -12,9 +12,31 @@ Looper::Looper()
 
 void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 {
-    if (isRecording)
+    if (!isRecording) return;
+
+    if (message.isNoteOn())
     {
-        recordedNotes.push_back({message, beatTime});
+        // Add to pending notes, waiting for a note off
+        pendingNotes.push_back({message, beatTime, 0.0});
+    }
+    else if (message.isNoteOff())
+    {
+        // Find the matching note on
+        auto it = std::find_if(pendingNotes.begin(), pendingNotes.end(), [&](const RecordedNote& n) {
+            return n.message.getNoteNumber() == message.getNoteNumber() &&
+                   n.message.getChannel() == message.getChannel();
+        });
+
+        if (it != pendingNotes.end())
+        {
+            // Calculate duration and add to the main list
+            it->durationInBeats = beatTime - it->beatTime;
+            // Ensure minimum duration for visibility
+            if (it->durationInBeats <= 0) it->durationInBeats = 0.1;
+
+            recordedNotes.push_back(*it);
+            pendingNotes.erase(it);
+        }
     }
 }
 

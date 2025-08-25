@@ -10,7 +10,6 @@
 
 HeadlessTester::HeadlessTester()
 {
-    // We need a processor instance to host the APVTS
     processor = std::make_unique<CreativeMidiGeneratorAudioProcessor>();
 }
 
@@ -18,17 +17,19 @@ juce::StringArray HeadlessTester::runAllTests()
 {
     results.clear();
 
-    // Run refactored generator tests
+    // Generator Tests
     results.add(testRandomGeneratorBasic());
     results.add(testRandomGeneratorParameters());
-    // results.add(testRandomGeneratorScales()); // Needs more work due to processor dependency
-
     results.add(testEuclideanGeneratorBasic());
     results.add(testEuclideanGeneratorPatterns());
+    results.add(testDualEuclideanGeneratorBasic());
+    results.add(testDualEuclideanGeneratorPatterns());
 
-    // The rest of the tests are commented out as they need refactoring
-    // or are for components not yet fully implemented.
-    // ...
+    // Scales and Looper tests remain, as they don't depend on the changed generator API
+    results.add(testScalesBasic());
+    results.add(testScalesIntervals());
+    results.add(testLooperBasic());
+    results.add(testLooperRecording());
 
     return results;
 }
@@ -68,18 +69,11 @@ juce::String HeadlessTester::testRandomGeneratorBasic()
     {
         auto generator = RandomGenerator();
         juce::MidiBuffer buffer;
-
-        // Set a high probability to ensure note generation
         *processor->apvts.getRawParameterValue("RANDOM_NOTE_PROBABILITY") = 1.0f;
-
         generator.process(buffer, processor->apvts, 44100.0, 1.0);
-
         return formatTestResult("RandomGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
-    catch (const std::exception& e)
-    {
-        return formatTestResult("RandomGenerator Basic", false, e.what());
-    }
+    catch (const std::exception& e) { return formatTestResult("RandomGenerator Basic", false, e.what()); }
 }
 
 juce::String HeadlessTester::testRandomGeneratorParameters()
@@ -87,40 +81,23 @@ juce::String HeadlessTester::testRandomGeneratorParameters()
     try
     {
         auto generator = RandomGenerator();
-
-        // Set parameters
         *processor->apvts.getRawParameterValue("RANDOM_MIN_NOTE") = 48.0f;
         *processor->apvts.getRawParameterValue("RANDOM_MAX_NOTE") = 72.0f;
         *processor->apvts.getRawParameterValue("RANDOM_NOTE_PROBABILITY") = 1.0f;
-
-        // Generate notes
         juce::MidiBuffer buffer;
         for (int i = 0; i < 50; ++i)
-        {
             generator.process(buffer, processor->apvts, 44100.0, static_cast<double>(i));
-        }
 
-        // Check range
         bool allInRange = true;
-        for (const auto metadata : buffer)
-        {
-            if (metadata.getMessage().isNoteOn())
-            {
-                int note = metadata.getMessage().getNoteNumber();
-                if (note < 48 || note > 72)
-                {
-                    allInRange = false;
-                    break;
-                }
+        for (const auto m : buffer) {
+            if (!m.getMessage().isNoteOn()) continue;
+            if (m.getMessage().getNoteNumber() < 48 || m.getMessage().getNoteNumber() > 72) {
+                allInRange = false; break;
             }
         }
-
-        return formatTestResult("RandomGenerator Parameters", allInRange, "Generated notes in range");
+        return formatTestResult("RandomGenerator Parameters", allInRange, "Notes in range");
     }
-    catch (const std::exception& e)
-    {
-        return formatTestResult("RandomGenerator Parameters", false, e.what());
-    }
+    catch (const std::exception& e) { return formatTestResult("RandomGenerator Parameters", false, e.what()); }
 }
 
 juce::String HeadlessTester::testEuclideanGeneratorBasic()
@@ -130,15 +107,10 @@ juce::String HeadlessTester::testEuclideanGeneratorBasic()
         auto generator = EuclideanGenerator();
         juce::MidiBuffer buffer;
         *processor->apvts.getRawParameterValue("EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
-
         generator.process(buffer, processor->apvts, 44100.0, 1.0);
-
         return formatTestResult("EuclideanGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
-    catch (const std::exception& e)
-    {
-        return formatTestResult("EuclideanGenerator Basic", false, e.what());
-    }
+    catch (const std::exception& e) { return formatTestResult("EuclideanGenerator Basic", false, e.what()); }
 }
 
 juce::String HeadlessTester::testEuclideanGeneratorPatterns()

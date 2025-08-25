@@ -24,6 +24,6 @@ private:
     int rootNote_ = 0;
 
     // Helper methods
-    int calculateVelocity(float bias, int maxVelocity) const;
-    float getRandomDuration(float bias) const;
+    int calculateVelocity(float bias, int maxVelocity);
+    float getRandomDuration(float bias);
 };

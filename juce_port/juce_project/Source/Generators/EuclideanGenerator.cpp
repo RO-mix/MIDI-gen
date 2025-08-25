@@ -46,17 +46,21 @@ void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
             int generatedNote = note;
             if (deviationRange > 0 && !scaleNotes_.empty())
             {
-                int deviation = random_.nextInt(deviationRange + 1);
-                if (isBipolar && random_.nextBool())
-                {
-                    deviation = -deviation;
-                }
+                // Melodic "walking" deviation
+                int step = (random_.nextInt(3) - 1); // -1, 0, or 1
+                lastDeviation_ += step;
+
+                // Clamp within the bipolar range if active, or unipolar if not
+                if (isBipolar)
+                    lastDeviation_ = juce::jlimit(-deviationRange, deviationRange, lastDeviation_);
+                else
+                    lastDeviation_ = juce::jlimit(0, deviationRange, lastDeviation_);
 
                 auto it = std::find_if(scaleNotes_.begin(), scaleNotes_.end(), [&](int scaleNote){ return (note % 12) == (rootNote_ + scaleNote) % 12; });
                 if(it != scaleNotes_.end())
                 {
                     int baseIndex = std::distance(scaleNotes_.begin(), it);
-                    int newIndex = (baseIndex + deviation);
+                    int newIndex = baseIndex + lastDeviation_;
 
                     // Wrap index within scale size
                     while(newIndex < 0) newIndex += scaleNotes_.size();

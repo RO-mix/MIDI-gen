@@ -64,6 +64,7 @@ public:
     struct RecordedNote {
         juce::MidiMessage message;
         double beatTime;
+        double durationInBeats = 0.25; // Default duration
     };
 private:
 
@@ -72,6 +73,7 @@ private:
 
     // Данные записи
     std::vector<RecordedNote> recordedNotes;
+    std::vector<RecordedNote> pendingNotes; // For calculating duration
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
     // Состояние

@@ -21,18 +21,13 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     bpmLabel.setText("BPM", juce::dontSendNotification);
     bpmLabel.attachToComponent(&bpmSlider, true);
 
-    addAndMakeVisible(midiPortCombo);
-    // TODO: MIDI port listing and selection needs to be implemented.
-    // This is more complex than a simple parameter attachment.
-    midiPortCombo.addItem("Default MIDI Out", 1);
-
     addAndMakeVisible(midiChannelSlider);
     midiChannelSlider.setSliderStyle(juce::Slider::IncDecButtons);
     midiChannelSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
     midiChannelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "MIDI_CHANNEL", midiChannelSlider);
 
     addAndMakeVisible(midiChannelLabel);
-    midiChannelLabel.setText("Channel", juce::dontSendNotification);
+    midiChannelLabel.setText("MIDI CH", juce::dontSendNotification);
     midiChannelLabel.attachToComponent(&midiChannelSlider, true);
 
 
@@ -50,6 +45,23 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     addAndMakeVisible(scaleLabel);
     scaleLabel.setText("Scale", juce::dontSendNotification);
     scaleLabel.attachToComponent(&scaleCombo, true);
+
+    // Preset Controls
+    presetDirectory = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile(JucePlugin_Manufacturer)
+                        .getChildFile(JucePlugin_Name)
+                        .getChildFile("Presets");
+
+    if (!presetDirectory.exists())
+        presetDirectory.createDirectory();
+
+    addAndMakeVisible(presetCombo);
+    presetCombo.onChange = [this] { loadPreset(presetCombo.getSelectedId()); };
+    scanForPresets(); // Initial scan
+
+    addAndMakeVisible(savePresetButton);
+    savePresetButton.setButtonText("Save Preset");
+    savePresetButton.onClick = [this] { savePreset(); };
 }
 
 ToolbarComponent::~ToolbarComponent()
@@ -71,15 +83,67 @@ void ToolbarComponent::resized()
 
     // Layout Row 1
     startButton.setBounds(row1.removeFromLeft(80));
-    row1.removeFromLeft(10); // spacing
-    midiPortCombo.setBounds(row1.removeFromRight(150));
-    row1.removeFromRight(10);
-    midiChannelSlider.setBounds(row1.removeFromRight(120));
-    row1.removeFromRight(10);
-    bpmSlider.setBounds(row1);
+    row1.removeFromLeft(10);
+    bpmSlider.setBounds(row1.removeFromLeft(150));
+    row1.removeFromLeft(10);
+    midiChannelSlider.setBounds(row1.removeFromLeft(120));
 
     // Layout Row 2
-    rootNoteCombo.setBounds(row2.removeFromLeft(150));
+    rootNoteCombo.setBounds(row2.removeFromLeft(80));
     row2.removeFromLeft(10);
-    scaleCombo.setBounds(row2.removeFromLeft(200));
+    scaleCombo.setBounds(row2.removeFromLeft(150));
+    row2.removeFromLeft(10);
+    presetCombo.setBounds(row2.removeFromLeft(150));
+    row2.removeFromLeft(10);
+    savePresetButton.setBounds(row2.removeFromLeft(100));
+}
+
+void ToolbarComponent::scanForPresets()
+{
+    presetFiles.clear();
+    presetCombo.clear();
+
+    auto presetFileArray = presetDirectory.findChildFiles(juce::File::findFiles, false, "*.xml");
+    for (const auto& file : presetFileArray)
+    {
+        presetFiles.add(file.getFullPathName());
+        presetCombo.addItem(file.getFileNameWithoutExtension(), presetFiles.size());
+    }
+}
+
+void ToolbarComponent::savePreset()
+{
+    juce::FileChooser chooser("Save Preset", presetDirectory, "*.xml");
+
+    if (chooser.browseForFileToSave(true))
+    {
+        juce::File file = chooser.getResult();
+        auto state = audioProcessor.apvts.copyState();
+        std::unique_ptr<juce::XmlElement> xml(state.createXml());
+
+        if (xml != nullptr)
+        {
+            xml->writeTo(file);
+            scanForPresets(); // Rescan to update the list
+        }
+    }
+}
+
+void ToolbarComponent::loadPreset(int presetId)
+{
+    if (presetId > 0 && presetId <= presetFiles.size())
+    {
+        juce::File presetFile(presetFiles[presetId - 1]);
+        if (presetFile.existsAsFile())
+        {
+            std::unique_ptr<juce::XmlElement> xmlState(juce::XmlDocument::parse(presetFile));
+            if (xmlState != nullptr)
+            {
+                if (xmlState->hasTagName(audioProcessor.apvts.state.getType()))
+                {
+                    audioProcessor.apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+                }
+            }
+        }
+    }
 }

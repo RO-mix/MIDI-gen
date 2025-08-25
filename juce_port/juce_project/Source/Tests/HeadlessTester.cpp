@@ -22,6 +22,8 @@ juce::StringArray HeadlessTester::runAllTests()
     results.add(testScalesIntervals());
     results.add(testLooperBasic());
     results.add(testLooperRecording());
+    results.add(testLooperCapture());
+    results.add(testLooperAutoRecapture());
 
     return results;
 }
@@ -247,4 +249,78 @@ juce::String HeadlessTester::testLooperRecording()
         return formatTestResult("Looper Recording", true, "Recording functionality works");
     }
     catch (const std::exception& e) { return formatTestResult("Looper Recording", false, e.what()); }
+}
+
+juce::String HeadlessTester::testLooperCapture()
+{
+    try
+    {
+        processor->prepareToPlay(44100.0, 512);
+
+        // Before capture, looper should be empty
+        if (!processor->getLooperNotes().empty())
+            return formatTestResult("Looper Capture", false, "Looper not empty initially");
+
+        // Perform capture
+        processor->captureFromGenerator();
+
+        // After capture, looper should have notes
+        if (processor->getLooperNotes().empty())
+            return formatTestResult("Looper Capture", false, "Looper empty after capture");
+
+        if (processor->getLooperDurationInBeats() <= 0)
+            return formatTestResult("Looper Capture", false, "Looper duration invalid after capture");
+
+        return formatTestResult("Looper Capture", true, "Capture successful");
+    }
+    catch (const std::exception& e) { return formatTestResult("Looper Capture", false, e.what()); }
+}
+
+juce::String HeadlessTester::testLooperAutoRecapture()
+{
+    try
+    {
+        processor->prepareToPlay(44100.0, 512);
+
+        // 1. Set recapture period to "Every 2 loops"
+        auto* recapParam = processor->apvts.getParameter("LOOPER_RECAPTURE_PERIOD");
+        recapParam->setValueNotifyingHost(1.0f / 5.0f);
+
+        // 2. Perform initial capture and start playing
+        processor->captureFromGenerator();
+        processor->toggleLooperPlay();
+
+        const auto initialNotes = processor->getLooperNotes();
+        if (initialNotes.empty())
+            return formatTestResult("Looper Auto-Recapture", false, "Initial capture failed");
+
+        const double loopDuration = processor->getLooperDurationInBeats();
+        if (loopDuration <= 0)
+             return formatTestResult("Looper Auto-Recapture", false, "Initial loop duration invalid");
+
+        // 3. Simulate time passing
+        const double beatsToSimulate = loopDuration * 2.5;
+        const double samplesPerBeat = 44100.0 * 60.0 / 120.0;
+        const int totalSamplesToSimulate = static_cast<int>(beatsToSimulate * samplesPerBeat);
+        const int blockSize = 512;
+
+        juce::AudioBuffer<float> buffer(2, blockSize);
+        juce::MidiBuffer midi;
+
+        for (int i = 0; i < totalSamplesToSimulate; i += blockSize)
+        {
+            processor->processBlock(buffer, midi);
+        }
+
+        // 4. Check for change
+        const auto finalNotes = processor->getLooperNotes();
+        bool contentIsDifferent = initialNotes.size() != finalNotes.size();
+        if (!contentIsDifferent && !initialNotes.empty() && !finalNotes.empty())
+        {
+            contentIsDifferent = initialNotes[0].message.getNoteNumber() != finalNotes[0].message.getNoteNumber();
+        }
+
+        return formatTestResult("Looper Auto-Recapture", contentIsDifferent, "Content changed as expected");
+    }
+    catch (const std::exception& e) { return formatTestResult("Looper Auto-Recapture", false, e.what()); }
 }

@@ -113,3 +113,35 @@ void EuclideanGenerator::setScale(int rootNote, const std::vector<int>& scaleNot
     rootNote_ = rootNote;
     scaleNotes_ = scaleNotes;
 }
+
+juce::MidiBuffer EuclideanGenerator::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
+{
+    juce::MidiBuffer pattern;
+    double virtualBeat = 0.0;
+    const double bpm = *apvts.getRawParameterValue("BPM");
+    const double beatsPerSample = bpm / 60.0 / sampleRate;
+
+    // Reset state to ensure predictable pattern generation
+    lastBeat_ = -1.0;
+    currentStep_ = -1;
+
+    while (virtualBeat < durationInBeats)
+    {
+        process(pattern, apvts, sampleRate, virtualBeat);
+        // The process method internally advances lastBeat_, so we just need to update our virtualBeat
+        virtualBeat = lastBeat_;
+    }
+
+    // Correct sample positions to be relative to the start of the buffer
+    juce::MidiBuffer finalPattern;
+    int firstSamplePos = -1;
+
+    for (const auto metadata : pattern)
+    {
+        if (firstSamplePos < 0)
+            firstSamplePos = metadata.samplePosition;
+        finalPattern.addEvent(metadata.getMessage(), metadata.samplePosition - firstSamplePos);
+    }
+
+    return finalPattern;
+}

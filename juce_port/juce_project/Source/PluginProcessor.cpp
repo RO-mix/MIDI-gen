@@ -25,6 +25,7 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
     apvts.addParameterListener("GENERATOR_TYPE", this);
     apvts.addParameterListener("ROOT_NOTE", this);
     apvts.addParameterListener("SCALE", this);
+    apvts.addParameterListener("LOOPER_RECAPTURE_PERIOD", this);
 
     updateActiveGenerator();
 
@@ -143,9 +144,60 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         activeGenerator->process(generatedMidi, apvts, sampleRate_, currentBeat_);
     }
 
+    // --- Populate Live Notes for Timeline ---
+    for (const auto metadata : generatedMidi)
+    {
+        auto message = metadata.getMessage();
+        if (message.isNoteOn())
+        {
+            liveNotes.push_back({
+                message.getNoteNumber(),
+                message.getVelocity(),
+                currentBeat_ + (metadata.samplePosition / samplesPerBeat_),
+                0.25 // Fixed duration for now (16th note)
+            });
+        }
+    }
+
     currentBeat_ += buffer.getNumSamples() * beatsPerSample;
 
+    // --- Trim Live Notes Buffer ---
+    const double historyToKeepInBeats = 32.0; // Keep 8 bars of history
+    if (liveNotes.size() > 256) // Trigger cleanup when buffer gets large
+    {
+         liveNotes.erase(
+            std::remove_if(liveNotes.begin(), liveNotes.end(),
+                [&](const LiveNote& note) {
+                    return note.startTime < (currentBeat_ - historyToKeepInBeats);
+                }),
+            liveNotes.end());
+    }
+
+
     midiMessages.addEvents(generatedMidi, 0, -1, 0);
+
+    // --- Handle Auto-Recapture ---
+    if (looper_ && looper_->isPlaybackActive() && autoRecapturePeriod_ > 0)
+    {
+        double currentProgress = looper_->getPlaybackProgress();
+        // Check for loop wrap-around
+        if (currentProgress < lastLoopPosition_)
+        {
+            loopCounter_++;
+            if (loopCounter_ >= autoRecapturePeriod_)
+            {
+                captureFromGenerator();
+                loopCounter_ = 0;
+            }
+        }
+        lastLoopPosition_ = currentProgress;
+    }
+    else if (looper_ && !looper_->isPlaybackActive())
+    {
+        // Reset if looper stops
+        loopCounter_ = 0;
+        lastLoopPosition_ = 0.0;
+    }
 }
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
@@ -161,6 +213,13 @@ double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
         }
     }
     return apvts.getRawParameterValue("BPM")->load();
+}
+
+double CreativeMidiGeneratorAudioProcessor::getLooperDurationInBeats() const
+{
+    if (looper_)
+        return looper_->getDurationInBeats();
+    return 0.0;
 }
 
 //==============================================================================
@@ -223,12 +282,56 @@ void CreativeMidiGeneratorAudioProcessor::clearLooper()
 
 void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
 {
-    // TODO: Implement capture logic
+    if (activeGenerator && looper_)
+    {
+        auto* durationParam = apvts.getRawParameterValue("LOOPER_CAPTURE_DURATION");
+        if (!durationParam) return;
+
+        // Map choice to duration in beats. Must match the order in createParameterLayout.
+        // {"1/8 bar", "1/4 bar", "1/2 bar", "1 bar", "2 bars", "4 bars"}
+        int choice = static_cast<int>(*durationParam);
+        double durationInBeats = 0.0;
+        switch (choice) {
+            case 0: durationInBeats = 0.5; break;
+            case 1: durationInBeats = 1.0; break;
+            case 2: durationInBeats = 2.0; break;
+            case 3: durationInBeats = 4.0; break;
+            case 4: durationInBeats = 8.0; break;
+            case 5: durationInBeats = 16.0; break;
+        }
+
+        if (durationInBeats > 0)
+        {
+            auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
+            looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load());
+        }
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::quantizeLooper()
 {
-    // TODO: Implement quantization logic
+    if (looper_)
+    {
+        auto* gridParam = apvts.getRawParameterValue("LOOPER_QUANTIZE_GRID");
+        if (!gridParam) return;
+
+        int choice = static_cast<int>(*gridParam);
+        double gridInBeats = 0.0;
+        switch (choice) {
+            // "Off", "1/4", "1/8", "1/16", "1/32", "1/64"
+            case 1: gridInBeats = 1.0; break;
+            case 2: gridInBeats = 0.5; break;
+            case 3: gridInBeats = 0.25; break;
+            case 4: gridInBeats = 0.125; break;
+            case 5: gridInBeats = 0.0625; break;
+            default: break; // Case 0 is "Off"
+        }
+
+        if (gridInBeats > 0)
+        {
+            looper_->quantize(gridInBeats);
+        }
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::generateLooperVariation()
@@ -238,12 +341,14 @@ void CreativeMidiGeneratorAudioProcessor::generateLooperVariation()
 
 void CreativeMidiGeneratorAudioProcessor::doubleLoop()
 {
-    // TODO: Implement loop doubling logic
+    if (looper_)
+        looper_->doubleLoop();
 }
 
 void CreativeMidiGeneratorAudioProcessor::splitLoop()
 {
-    // TODO: Implement loop splitting logic
+    if (looper_)
+        looper_->splitLoop();
 }
 
 void CreativeMidiGeneratorAudioProcessor::setLooperMode(LooperMode mode)
@@ -316,6 +421,17 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
     {
         updateScale();
     }
+    else if (parameterID == "LOOPER_RECAPTURE_PERIOD")
+    {
+        int choice = static_cast<int>(newValue);
+        // Maps to {"Off", "Every 2 loops", "Every 3 loops", "Every 4 loops", "Every 6 loops", "Every 8 loops"}
+        int periodMap[] = { 0, 2, 3, 4, 6, 8 };
+        if (choice >= 0 && choice < std::size(periodMap))
+        {
+            autoRecapturePeriod_ = periodMap[choice];
+            loopCounter_ = 0; // Reset counter on change
+        }
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
@@ -350,7 +466,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     // === Global and Toolbar ===
     add(std::make_unique<juce::AudioParameterFloat>("BPM", "BPM", 20.0f, 300.0f, 120.0f));
     add(std::make_unique<juce::AudioParameterChoice>("ROOT_NOTE", "Root Note", juce::StringArray{"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}, 0));
-    add(std::make_unique<juce::AudioParameterChoice>("SCALE", "Scale", juce::StringArray{"Major", "Minor", "Dorian", "Mixolydian", "Lydian", "Phrygian", "Locrian", "Minor Pentatonic", "Major Pentatonic", "Chromatic"}, 0));
+    add(std::make_unique<juce::AudioParameterChoice>("SCALE", "Scale", Scales::getAvailableScaleNames(), 0));
     add(std::make_unique<juce::AudioParameterInt>("MIDI_CHANNEL", "MIDI Channel", 1, 16, 1));
     add(std::make_unique<juce::AudioParameterChoice>("GENERATOR_TYPE", "Generator Type", juce::StringArray{"Random", "Euclidean", "Dual Euclidean", "Random v2.2"}, 0));
 
@@ -398,7 +514,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     add(std::make_unique<juce::AudioParameterInt>("RANDOM_V2_MAX_NOTE", "Random v2 Max Note", 0, 127, 72));
     add(std::make_unique<juce::AudioParameterFloat>("RANDOM_V2_BURST_PROB", "Random v2 Burst Probability", 0.0f, 1.0f, 0.5f));
     add(std::make_unique<juce::AudioParameterFloat>("RANDOM_V2_NOTE_PROB", "Random v2 Note Probability", 0.0f, 1.0f, 1.0f));
-    add(std::make_unique<juce::AudioParameterChoice>("RANDOM_V2_BASE_DURATION", "Random v2 Base Duration", juce::StringArray{"4 bars", "2 bars", "1 bar", "1/2 .", "1/2", "1/4"}, 2));
+    add(std::make_unique<juce::AudioParameterChoice>("RANDOM_V2_BASE_DURATION", "Random v2 Base Duration", juce::StringArray{"4 Bars", "2 Bars", "Whole Note (4/4)", "Dotted Half (3/4)", "Half Note (2/4)", "Quarter Note (1/4)"}, 2));
     add(std::make_unique<juce::AudioParameterChoice>("RANDOM_V2_ACCELERATION", "Random v2 Acceleration", juce::StringArray{"x1", "x2", "x4", "x8"}, 1));
     for (int i = 0; i < 8; ++i)
     {

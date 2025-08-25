@@ -14,6 +14,8 @@ public:
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
+    juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate) override;
+
 private:
     // Internal state
     int masterStepA_ = -1;

@@ -87,6 +87,16 @@ public:
     const std::vector<Looper::RecordedNote>& getLooperNotes() const;
     double getLooperPlaybackProgress() const;
 
+    struct LiveNote {
+        int noteNumber;
+        int velocity;
+        double startTime; // in beats
+        double duration;  // in beats
+    };
+    const std::vector<LiveNote>& getLiveNotes() const { return liveNotes; }
+    double getCurrentBeat() const { return currentBeat_; }
+    double getLooperDurationInBeats() const;
+
     void setLooperPlaybackSpeed(float speed) { if (looper_) looper_->setPlaybackSpeed(speed); }
     float getLooperPlaybackSpeed() const { return looper_ ? looper_->getPlaybackSpeed() : 1.0f; }
 
@@ -106,11 +116,17 @@ private:
     BaseGenerator* activeGenerator = nullptr;
 
     std::unique_ptr<Looper> looper_;
+    std::vector<LiveNote> liveNotes;
     double currentBeat_ = 0.0;
     double samplesPerBeat_ = 0.0;
     double sampleRate_ = 44100.0;
     double currentBpm_ = 120.0;
     bool isPlaying_ = false;
+
+    // Auto-Recapture State
+    int autoRecapturePeriod_ = 0; // 0 for off
+    int loopCounter_ = 0;
+    double lastLoopPosition_ = 0.0;
     
     // Получение BPM из DAW
     double getCurrentBpm() const;

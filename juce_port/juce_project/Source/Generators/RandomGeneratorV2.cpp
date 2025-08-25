@@ -96,3 +96,35 @@ void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNote
     // but the method must be implemented.
     juce::ignoreUnused(rootNote, scaleNotes);
 }
+
+juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
+{
+    juce::MidiBuffer pattern;
+    double virtualBeat = 0.0;
+    const double bpm = *apvts.getRawParameterValue("BPM");
+    const double beatsPerSample = bpm / 60.0 / sampleRate;
+
+    // Reset state to ensure predictable pattern generation
+    lastBeat_ = -1.0;
+    nextEventBeat_ = 0.0;
+
+    while (virtualBeat < durationInBeats)
+    {
+        process(pattern, apvts, sampleRate, virtualBeat);
+        // The process method internally advances lastBeat_, so we just need to update our virtualBeat
+        virtualBeat = lastBeat_;
+    }
+
+    // Correct sample positions to be relative to the start of the buffer
+    juce::MidiBuffer finalPattern;
+    int firstSamplePos = -1;
+
+    for (const auto metadata : pattern)
+    {
+        if (firstSamplePos < 0)
+            firstSamplePos = metadata.samplePosition;
+        finalPattern.addEvent(metadata.getMessage(), metadata.samplePosition - firstSamplePos);
+    }
+
+    return finalPattern;
+}

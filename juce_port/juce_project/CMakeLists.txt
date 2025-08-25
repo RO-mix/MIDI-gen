@@ -37,6 +37,9 @@ juce_add_plugin(CreativeMIDIGenerator
 
 target_sources(CreativeMIDIGenerator PRIVATE ${PLUGIN_SOURCE_FILES})
 
+# Force legacy parameter IDs to resolve VST2/VST3 automation conflict
+target_compile_definitions(CreativeMIDIGenerator PRIVATE JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
+
 # juce_set_post_build_step(CreativeMIDIGenerator)
 
 # --- Headless Test Runner ---

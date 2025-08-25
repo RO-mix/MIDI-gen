@@ -79,6 +79,7 @@ void Looper::setMode(LooperMode mode)
 
 juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime)
 {
+    playbackHead_ = startTime;
     juce::MidiBuffer buffer;
 
     if (recordedNotes.empty())
@@ -117,6 +118,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
 
 juce::MidiBuffer Looper::processGenerationLooperBuffer(int numSamples, double startTime, double endTime)
 {
+    playbackHead_ = startTime;
     juce::MidiBuffer buffer;
 
     if (generationBuffer.isEmpty())
@@ -160,6 +162,17 @@ juce::MidiBuffer Looper::processGenerationLooperBuffer(int numSamples, double st
     }
 
     return buffer;
+}
+
+double Looper::getPlaybackProgress() const
+{
+    if (!isPlaying || (loopEnd - loopStart) <= 0.0)
+    {
+        return 0.0;
+    }
+
+    double progress = (playbackHead_ - loopStart) / (loopEnd - loopStart);
+    return std::fmod(progress, 1.0);
 }
 
 juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, double timeOffset)

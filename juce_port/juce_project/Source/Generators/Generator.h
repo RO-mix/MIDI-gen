@@ -1,10 +1,11 @@
 #pragma once
+
 #include <JuceHeader.h>
 
-class BaseGenerator
+class Generator
 {
 public:
-    virtual ~BaseGenerator() = default;
+    virtual ~Generator() = default;
 
     /**
      * @brief Processes a block of audio and generates MIDI messages.

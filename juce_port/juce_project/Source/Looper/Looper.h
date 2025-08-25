@@ -50,6 +50,11 @@ public:
     bool isPlaybackActive() const { return isPlaying; }
     size_t getRecordedNotesCount() const { return recordedNotes.size(); }
 
+    // Getters for UI
+    const std::vector<RecordedNote>& getNotes() const { return recordedNotes; }
+    double getPlaybackProgress() const;
+
+
     // Управление записью/воспроизведением
     void startRecording();
     void stopRecording();
@@ -71,6 +76,7 @@ private:
     // Состояние
     bool isRecording = false;
     bool isPlaying = false;
+    double playbackHead_ = 0.0;
 
     // Параметры лупа
     double loopStart = 0.0;

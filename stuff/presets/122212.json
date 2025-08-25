@@ -1,0 +1,18 @@
+{
+    "version": 1,
+    "app_state": {
+        "bpm": 120,
+        "root_note": 0,
+        "scale_name": "Major"
+    },
+    "selected_generator": "\u0421\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0439",
+    "generator_settings": {
+        "min_note": 60,
+        "max_note": 72,
+        "max_velocity": 120,
+        "velocity_bias": 0.5,
+        "add_cc74": false,
+        "channel": 0,
+        "duration_bias": 0.5
+    }
+}

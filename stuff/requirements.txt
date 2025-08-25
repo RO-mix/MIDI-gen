@@ -1,0 +1,5 @@
+mido
+python-rtmidi
+dearpygui
+pretty_midi
+setuptools

@@ -27,6 +27,7 @@ private:
     juce::TextButton savePresetButton;
 
     // Preset Management
+    std::unique_ptr<juce::FileChooser> fileChooser;
     juce::File presetDirectory;
     juce::StringArray presetFiles;
     void scanForPresets();

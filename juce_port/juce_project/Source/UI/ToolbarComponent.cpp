@@ -113,20 +113,27 @@ void ToolbarComponent::scanForPresets()
 
 void ToolbarComponent::savePreset()
 {
-    juce::FileChooser chooser("Save Preset", presetDirectory, "*.xml");
+    fileChooser = std::make_unique<juce::FileChooser>("Save Preset",
+                                                      presetDirectory,
+                                                      "*.xml");
 
-    if (chooser.browseForFileToSave(true))
+    auto chooserFlags = juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::warnAboutOverwriting;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& chooser)
     {
         juce::File file = chooser.getResult();
-        auto state = audioProcessor.apvts.copyState();
-        std::unique_ptr<juce::XmlElement> xml(state.createXml());
-
-        if (xml != nullptr)
+        if (file != juce::File{})
         {
-            xml->writeTo(file);
-            scanForPresets(); // Rescan to update the list
+            auto state = audioProcessor.apvts.copyState();
+            std::unique_ptr<juce::XmlElement> xml(state.createXml());
+
+            if (xml != nullptr)
+            {
+                xml->writeTo(file);
+                scanForPresets(); // Rescan to update the list
+            }
         }
-    }
+    });
 }
 
 void ToolbarComponent::loadPreset(int presetId)

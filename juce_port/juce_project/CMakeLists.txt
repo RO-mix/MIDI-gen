@@ -6,6 +6,9 @@ set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "Disable building JUCE extras")
 set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Disable building JUCE examples")
 add_subdirectory(../../JUCE JUCE)
 
+# Force legacy parameter IDs to resolve VST2/VST3 automation conflict
+add_compile_definitions(JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
+
 # --- Core Logic Source Files ---
 set(CORE_SOURCE_FILES
     Source/Generators/BaseGenerator.cpp
@@ -36,9 +39,6 @@ juce_add_plugin(CreativeMIDIGenerator
 )
 
 target_sources(CreativeMIDIGenerator PRIVATE ${PLUGIN_SOURCE_FILES})
-
-# Force legacy parameter IDs to resolve VST2/VST3 automation conflict
-target_compile_definitions(CreativeMIDIGenerator PRIVATE JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
 
 # juce_set_post_build_step(CreativeMIDIGenerator)
 

@@ -11,7 +11,6 @@ add_compile_definitions(JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
 
 # --- Core Logic Source Files ---
 set(CORE_SOURCE_FILES
-    Source/Generators/BaseGenerator.cpp
     Source/Generators/RandomGenerator.cpp
     Source/Generators/EuclideanGenerator.cpp
     Source/Generators/DualEuclideanGenerator.cpp

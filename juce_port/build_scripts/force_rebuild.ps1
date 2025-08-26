@@ -85,6 +85,31 @@ if (-not $msbuildPath) {
     exit 1
 }
 
+# Step 2.5: Resave project with Projucer to apply changes
+Write-Step "Step 2.5: Resaving project with Projucer"
+$projucerPath = Join-Path $PSScriptRoot "..\..\JUCE\Projucer.exe"
+$jucerFilePath = Join-Path $PSScriptRoot "..\juce_project\CreativeMIDIGenerator.jucer"
+
+if (Test-Path $projucerPath) {
+    if (Test-Path $jucerFilePath) {
+        Write-Info "Found Projucer. Resaving Jucer project..."
+        & $projucerPath --resave $jucerFilePath
+        if ($LASTEXITCODE -eq 0) {
+            Write-Success "Project resaved successfully."
+        } else {
+            Write-Error "Projucer failed to resave the project. Check Projucer output."
+            # We don't exit here, maybe the old solution file is still valid
+        }
+    } else {
+        Write-Error "Jucer file not found at $jucerFilePath"
+        # We don't exit, maybe it's not a Jucer-based project after all.
+    }
+} else {
+    Write-Info "Projucer.exe not found at $projucerPath. Skipping automatic resave."
+    Write-Info "Please ensure your Visual Studio project is up-to-date manually if you make .jucer changes."
+}
+
+
 # Step 3: Check solution file
 Write-Step "Step 3: Checking solution file"
 $solutionPath = "$ProjectPath\Builds\VisualStudio2022\Creative MIDI Generator.sln"

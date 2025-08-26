@@ -28,10 +28,28 @@ if (-not (Test-Path $JucePath)) {
     Write-Host "JUCE found: $JucePath" -ForegroundColor Green
 }
 
-# Create build directory
+# Create or clean build directory
+if (Test-Path $BuildPath) {
+    Write-Host "Attempting to clean existing build directory: $BuildPath" -ForegroundColor Yellow
+    try {
+        Remove-Item -Recurse -Force $BuildPath -ErrorAction Stop
+        Write-Host "Cleaned existing build directory: $BuildPath" -ForegroundColor Green
+    } catch {
+        Write-Host "Warning: Could not fully clean build directory. Some files may be in use." -ForegroundColor Yellow
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Gray
+    }
+}
+
 if (-not (Test-Path $BuildPath)) {
-    New-Item -ItemType Directory -Path $BuildPath | Out-Null
-    Write-Host "Created build directory: $BuildPath" -ForegroundColor Cyan
+    try {
+        New-Item -ItemType Directory -Path $BuildPath -ErrorAction Stop | Out-Null
+        Write-Host "Created fresh build directory: $BuildPath" -ForegroundColor Green
+    } catch {
+        Write-Error "Failed to create build directory: $($_.Exception.Message)"
+        exit 1
+    }
+} else {
+    Write-Host "Using existing build directory: $BuildPath" -ForegroundColor Cyan
 }
 
 # Configure CMake
@@ -39,20 +57,23 @@ Write-Host "Configuring CMake..." -ForegroundColor Yellow
 Push-Location $ProjectPath
 try {
     $cmakeArgs = @(
-        "-S", $ProjectPath,
-        "-B", $BuildPath,
-        "-G", "Unix Makefiles",
-        "-DJUCE_PATH=$JucePath",
-        "-DCMAKE_BUILD_TYPE=Release"
+        "-S", "`"$ProjectPath`"",
+        "-B", "`"$BuildPath`"",
+        "-G", "Visual Studio 17 2022",
+        "-A", "x64",
+        "-DJUCE_PATH=`"$JucePath`""
     )
 
+    Write-Host "Running CMake with args: $($cmakeArgs -join ' ')" -ForegroundColor Yellow
     $result = & cmake @cmakeArgs 2>&1
+    Write-Host "CMake exit code: $LASTEXITCODE" -ForegroundColor Yellow
     if ($LASTEXITCODE -ne 0) {
         Write-Error "CMake configuration failed"
         Write-Host $result
         exit 1
     }
     Write-Host "CMake configured successfully" -ForegroundColor Green
+    Write-Host "CMake output: $result" -ForegroundColor Gray
 } finally {
     Pop-Location
 }
@@ -73,7 +94,7 @@ try {
 }
 
 # Find executable
-$exePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "*Standalone*.exe" | Select-Object -First 1
+$exePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1
 
 if (-not $exePath) {
     Write-Error "Standalone executable not found"

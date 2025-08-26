@@ -7,43 +7,27 @@ public:
     EuclideanGenerator();
     ~EuclideanGenerator() override = default;
 
-    std::pair<std::vector<std::pair<juce::MidiMessage, double>>, double>
-    generate(double currentBeat) override;
+    void process(juce::MidiBuffer& midiMessages,
+                 juce::AudioProcessorValueTreeState& apvts,
+                 double sampleRate,
+                 double currentBeat) override;
 
-    void setParameter(const juce::String& paramId, float value) override;
-    float getParameter(const juce::String& paramId) const override;
+    void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
-    // Специфические параметры EuclideanGenerator
-    void setSteps(int steps) { steps_ = steps; updatePattern(); }
-    void setPulses(int pulses) { pulses_ = pulses; updatePattern(); }
-    void setNote(int note) { note_ = note; }
-    void setVelocity(int velocity) { velocity_ = velocity; }
-    void setChannel(int channel) { channel_ = channel; }
-    void setRate(float rate) { rate_ = rate; }
-    void setDeviationRange(int range) { deviationRange_ = range; }
-    void setNoteProbability(float probability) { noteProbability_ = probability; }
-    void setDeviationIsBipolar(bool bipolar) { deviationIsBipolar_ = bipolar; }
+    juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate) override;
 
 private:
-    // Параметры генератора
-    int steps_ = 16;                    // Количество шагов
-    int pulses_ = 4;                    // Количество импульсов
-    int note_ = 60;                     // Основная нота (C4)
-    int velocity_ = 100;                // Динамика
-    int channel_ = 0;                   // MIDI канал
-    float rate_ = 0.25f;                // Темп (beats per step)
-    int deviationRange_ = 0;            // Диапазон отклонения нот
-    float noteProbability_ = 1.0f;      // Вероятность генерации ноты
-    bool deviationIsBipolar_ = false;   // Биполярное отклонение
+    // Internal state
+    int currentStep_ = -1;
+    double lastBeat_ = -1.0;
+    int lastDeviation_ = 0;
+    std::vector<bool> pattern_;
+    std::vector<int> scaleNotes_;
+    int rootNote_ = 0;
 
-    // Внутреннее состояние
-    int currentStep_ = -1;              // Текущий шаг
-    std::vector<bool> pattern_;         // Евклидов паттерн
-
-    // Вспомогательные методы
-    void updatePattern();
-    std::vector<int> getNotesInRange() const;
+    // Helper methods
+    void updatePattern(int steps, int pulses);
 
     // Random number generation
-    mutable juce::Random random_;
+    juce::Random random_;
 };

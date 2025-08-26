@@ -10,11 +10,20 @@ enum class LooperMode
 class Looper
 {
 public:
+    struct RecordedNote {
+        juce::MidiMessage message;
+        double beatTime;
+        double durationInBeats = 0.25; // Default duration
+    };
+
     Looper();
+
+    void prepareToPlay(double sampleRate, int samplesPerBlock);
 
     // Основные методы управления
     void recordNote(const juce::MidiMessage& message, double beatTime);
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
+    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm);
     void startPlayback();
     void stopPlayback();
     void clear();
@@ -27,6 +36,9 @@ public:
     LooperMode getMode() const { return currentMode; }
 
     // Управление лупом
+    void quantize(double gridInBeats);
+    void doubleLoop();
+    void splitLoop(bool keepFirstHalf = true);
     void setLoopPoints(double start, double end);
     double getLoopStart() const { return loopStart; }
     double getLoopEnd() const { return loopEnd; }
@@ -50,27 +62,31 @@ public:
     bool isPlaybackActive() const { return isPlaying; }
     size_t getRecordedNotesCount() const { return recordedNotes.size(); }
 
+    // Getters for UI
+    const std::vector<RecordedNote>& getNotes() const { return recordedNotes; }
+    double getPlaybackProgress() const;
+    double getDurationInBeats() const { return loopEnd - loopStart; }
+
+
     // Управление записью/воспроизведением
     void startRecording();
     void stopRecording();
     void setRecording(bool recording);
 
 private:
-    struct RecordedNote {
-        juce::MidiMessage message;
-        double beatTime;
-    };
 
     // Режим работы
     LooperMode currentMode = LooperMode::MidiLooper;
 
     // Данные записи
     std::vector<RecordedNote> recordedNotes;
+    std::vector<RecordedNote> pendingNotes; // For calculating duration
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
     // Состояние
     bool isRecording = false;
     bool isPlaying = false;
+    double playbackHead_ = 0.0;
 
     // Параметры лупа
     double loopStart = 0.0;

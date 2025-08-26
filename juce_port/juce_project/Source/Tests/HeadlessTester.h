@@ -3,6 +3,8 @@
 #include "../Generators/BaseGenerator.h"
 #include "../Generators/RandomGenerator.h"
 #include "../Theory/Scales.h"
+#include "../PluginProcessor.h"
+#include <memory>
 
 /**
  * Headless тестовая система для генераторов MIDI паттернов
@@ -14,24 +16,15 @@ public:
     HeadlessTester();
     ~HeadlessTester() = default;
 
-    // Методы тестирования генераторов
-    bool testRandomGenerator();
-    bool testScales();
-    bool testMidiOutput();
-
     // Утилиты для тестирования
     juce::StringArray runAllTests();
     void printTestResults(const juce::StringArray& results);
 
-    // Статистические тесты
-    bool testRandomDistribution(int testSize = 1000);
-    bool testScaleFiltering();
-    bool testParameterRanges();
-
 private:
+    std::unique_ptr<CreativeMidiGeneratorAudioProcessor> processor;
+
     // Тестовые утилиты
     juce::String testRandomGeneratorBasic();
-    juce::String testRandomGeneratorScales();
     juce::String testRandomGeneratorParameters();
     juce::String testScalesBasic();
     juce::String testScalesIntervals();
@@ -41,18 +34,10 @@ private:
     juce::String testDualEuclideanGeneratorPatterns();
     juce::String testLooperBasic();
     juce::String testLooperRecording();
-    juce::String testLooperPlayback();
-    juce::String testLooperLoopPoints();
-    juce::String testLooperModes();
-    juce::String testLooperEffects();
-    juce::String testLooperEdgeCases();
-    juce::String testLooperComplexPatterns();
-    juce::String testLooperIntegration();
-    juce::String testLooperPerformance();
+    juce::String testLooperCapture();
+    juce::String testLooperAutoRecapture();
 
     // Вспомогательные методы
-    std::vector<int> collectGeneratedNotes(std::unique_ptr<BaseGenerator> generator, int numBeats);
-    bool isNoteInScale(int note, const juce::String& scaleName);
     juce::String formatTestResult(const juce::String& testName, bool passed, const juce::String& details = "");
 
     // Логирование

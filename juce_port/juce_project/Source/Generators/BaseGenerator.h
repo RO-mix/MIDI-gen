@@ -4,36 +4,55 @@
 class BaseGenerator
 {
 public:
-    BaseGenerator() = default;
-    virtual ~BaseGenerator();
+    virtual ~BaseGenerator() = default;
 
-    // Основной метод генерации
-    virtual std::pair<std::vector<std::pair<juce::MidiMessage, double>>, double>
-    generate(double currentBeat) = 0;
+    /**
+     * @brief Processes a block of audio and generates MIDI messages.
+     *
+     * This pure virtual function must be implemented by all derived generator classes.
+     * It is responsible for generating MIDI events based on the generator's internal logic
+     * and the parameters provided in the AudioProcessorValueTreeState.
+     *
+     * @param midiMessages The MIDI buffer to which generated messages will be added.
+     * @param apvts A reference to the AudioProcessorValueTreeState containing all plugin parameters.
+     * @param sampleRate The current sample rate.
+     * @param currentBeat The current beat position in the host's timeline.
+     */
+    virtual void process(juce::MidiBuffer& midiMessages,
+                         juce::AudioProcessorValueTreeState& apvts,
+                         double sampleRate,
+                         double currentBeat) = 0;
 
-    // Управление параметрами
-    virtual void setParameter(const juce::String& paramId, float value) = 0;
-    virtual float getParameter(const juce::String& paramId) const = 0;
-
-    // Масштаб нот (эквивалент set_scale_notes в Python версии)
-    virtual void setScaleNotes(const std::vector<int>& notes) { scaleNotes_ = notes; }
-    virtual const std::vector<int>& getScaleNotes() const { return scaleNotes_; }
-
-    // Обновление параметров (эквивалент update_params в Python версии)
-    virtual void updateParams(const std::map<juce::String, float>& params)
+    /**
+     * @brief Sets the musical scale for the generator.
+     *
+     * This function can be overridden by generators that use musical scales.
+     *
+     * @param rootNote The MIDI note number of the root of the scale.
+     * @param scaleNotes A vector of integers representing the intervals of the scale.
+     */
+    virtual void setScale(int rootNote, const std::vector<int>& scaleNotes)
     {
-        for (const auto& [paramId, value] : params)
-        {
-            setParameter(paramId, value);
-        }
+        juce::ignoreUnused(rootNote, scaleNotes);
+        // Default implementation does nothing.
+        // Derived classes can override this if they use scales.
     }
 
-    // Смещение длительности (для совместимости с Python версией)
-    virtual void setDurationBias(float bias) { durationBias_ = bias; }
-    virtual float getDurationBias() const { return durationBias_; }
-
-protected:
-    // Общие члены для всех генераторов
-    std::vector<int> scaleNotes_;     // Доступные ноты из текущего масштаба
-    float durationBias_ = 0.5f;       // Смещение длительности (0.0 - длинные, 1.0 - короткие)
+    /**
+     * @brief Generates a pattern of a specific duration.
+     *
+     * This function can be overridden by generators to produce a complete
+     * musical pattern, which can be used for features like 'Capture'.
+     *
+     * @param durationInBeats The desired duration of the pattern in beats.
+     * @param apvts A reference to the AudioProcessorValueTreeState.
+     * @param sampleRate The current sample rate.
+     * @return A MidiBuffer containing the generated pattern.
+     */
+    virtual juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
+    {
+        // Default implementation returns an empty buffer.
+        juce::ignoreUnused(durationInBeats, apvts, sampleRate);
+        return juce::MidiBuffer();
+    }
 };

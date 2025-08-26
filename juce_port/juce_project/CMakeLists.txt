@@ -14,9 +14,22 @@ set(CORE_SOURCE_FILES
     Source/Generators/RandomGenerator.cpp
     Source/Generators/EuclideanGenerator.cpp
     Source/Generators/DualEuclideanGenerator.cpp
+    Source/Generators/RandomGeneratorV2.cpp
     Source/Generators/Duration.cpp
     Source/Theory/Scales.cpp
     Source/Looper/Looper.cpp
+)
+
+# --- UI Component Source Files ---
+set(UI_SOURCE_FILES
+    Source/UI/ToolbarComponent.cpp
+    Source/UI/GeneratorSectionComponent.cpp
+    Source/UI/LooperSectionComponent.cpp
+    Source/UI/RandomGeneratorPanel.cpp
+    Source/UI/EuclideanGeneratorPanel.cpp
+    Source/UI/DualEuclideanGeneratorPanel.cpp
+    Source/UI/RandomGeneratorV2Panel.cpp
+    Source/UI/TimelineComponent.cpp
 )
 
 # --- Plugin Target ---
@@ -24,6 +37,7 @@ set(PLUGIN_SOURCE_FILES
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     ${CORE_SOURCE_FILES}
+    ${UI_SOURCE_FILES}
 )
 
 # Add the plugin target
@@ -39,7 +53,32 @@ juce_add_plugin(CreativeMIDIGenerator
 
 target_sources(CreativeMIDIGenerator PRIVATE ${PLUGIN_SOURCE_FILES})
 
+# Add include directories for the plugin
+target_include_directories(CreativeMIDIGenerator PRIVATE
+    Source
+    Source/Generators
+    Source/Theory
+    Source/Looper
+    Source/UI
+    Source/Sequencer
+    JuceLibraryCode
+)
+
 # juce_set_post_build_step(CreativeMIDIGenerator)
+
+# Link the plugin to required JUCE modules
+target_link_libraries(CreativeMIDIGenerator PRIVATE
+    juce::juce_audio_utils
+    juce::juce_audio_devices
+    juce::juce_audio_processors
+    juce::juce_audio_basics
+    juce::juce_gui_basics
+    juce::juce_gui_extra
+    juce::juce_graphics
+    juce::juce_events
+    juce::juce_data_structures
+    juce::juce_core
+)
 
 # --- Headless Test Runner ---
 # Source files for the test runner

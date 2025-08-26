@@ -93,11 +93,14 @@ $jucerFilePath = Join-Path $PSScriptRoot "..\juce_project\CreativeMIDIGenerator.
 if (Test-Path $projucerPath) {
     if (Test-Path $jucerFilePath) {
         Write-Info "Found Projucer. Resaving Jucer project..."
-        & $projucerPath --resave $jucerFilePath
-        if ($LASTEXITCODE -eq 0) {
+        $projucerOutput = & $projucerPath --resave $jucerFilePath 2>&1
+        if ($projucerOutput -like "*Finished saving*") {
             Write-Success "Project resaved successfully."
+            # Optionally display the output even on success for clarity
+            Write-Info "Projucer output: $projucerOutput"
         } else {
-            Write-Error "Projucer failed to resave the project. Check Projucer output."
+            Write-Error "Projucer failed to resave the project. See output below:"
+            Write-Host $projucerOutput -ForegroundColor Red
             # We don't exit here, maybe the old solution file is still valid
         }
     } else {

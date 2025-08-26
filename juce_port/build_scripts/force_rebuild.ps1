@@ -93,23 +93,20 @@ $jucerFilePath = Join-Path $PSScriptRoot "..\juce_project\CreativeMIDIGenerator.
 if (Test-Path $projucerPath) {
     if (Test-Path $jucerFilePath) {
         Write-Info "Found Projucer. Resaving Jucer project..."
-        $projucerOutput = & $projucerPath --resave $jucerFilePath 2>&1
-        if ($projucerOutput -like "*Finished saving*") {
+        # Using Start-Process -Wait to ensure the script waits for the GUI app to close.
+        $processInfo = Start-Process -FilePath $projucerPath -ArgumentList "--resave `"$jucerFilePath`"" -Wait -NoNewWindow -PassThru
+        if ($processInfo.ExitCode -eq 0) {
             Write-Success "Project resaved successfully."
-            # Optionally display the output even on success for clarity
-            Write-Info "Projucer output: $projucerOutput"
         } else {
-            Write-Error "Projucer failed to resave the project. See output below:"
-            Write-Host $projucerOutput -ForegroundColor Red
-            # We don't exit here, maybe the old solution file is still valid
+            Write-Error "Projucer failed to resave the project. Exit code: $($processInfo.ExitCode)"
+            Write-Info "If Projucer seems to work but this step fails, it might be returning a non-zero exit code on success."
+            Write-Info "In that case, we may need to ignore this error."
         }
     } else {
         Write-Error "Jucer file not found at $jucerFilePath"
-        # We don't exit, maybe it's not a Jucer-based project after all.
     }
 } else {
     Write-Info "Projucer.exe not found at $projucerPath. Skipping automatic resave."
-    Write-Info "Please ensure your Visual Studio project is up-to-date manually if you make .jucer changes."
 }
 
 

@@ -23,6 +23,7 @@ public:
     // Основные методы управления
     void recordNote(const juce::MidiMessage& message, double beatTime);
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
+    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm);
     void startPlayback();
     void stopPlayback();
     void clear();
@@ -35,6 +36,9 @@ public:
     LooperMode getMode() const { return currentMode; }
 
     // Управление лупом
+    void quantize(double gridInBeats);
+    void doubleLoop();
+    void splitLoop(bool keepFirstHalf = true);
     void setLoopPoints(double start, double end);
     double getLoopStart() const { return loopStart; }
     double getLoopEnd() const { return loopEnd; }
@@ -61,6 +65,7 @@ public:
     // Getters for UI
     const std::vector<RecordedNote>& getNotes() const { return recordedNotes; }
     double getPlaybackProgress() const;
+    double getDurationInBeats() const { return loopEnd - loopStart; }
 
 
     // Управление записью/воспроизведением

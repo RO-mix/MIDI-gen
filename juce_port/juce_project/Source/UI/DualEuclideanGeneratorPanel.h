@@ -39,7 +39,10 @@ private:
     juce::Slider noteProbabilitySlider;
     juce::ComboBox rateCombo;
 
-    // Labels are omitted for brevity but would be included in a full implementation
+    // Labels
+    juce::Label stepsLabelA, pulsesLabelA, noteLabelA, velocityLabelA, durationBiasLabelA, deviationLabelA, bipolarLabelA;
+    juce::Label stepsLabelB, pulsesLabelB, noteLabelB, velocityLabelB, durationBiasLabelB, deviationLabelB, bipolarLabelB;
+    juce::Label noteProbabilityLabel, rateLabel;
 
     // Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> stepsAttachmentA;

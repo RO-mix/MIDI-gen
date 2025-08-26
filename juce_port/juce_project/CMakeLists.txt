@@ -6,6 +6,9 @@ set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "Disable building JUCE extras")
 set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Disable building JUCE examples")
 add_subdirectory(../../JUCE JUCE)
 
+# Force legacy parameter IDs to resolve VST2/VST3 automation conflict
+add_compile_definitions(JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
+
 # --- Core Logic Source Files ---
 set(CORE_SOURCE_FILES
     Source/Generators/BaseGenerator.cpp

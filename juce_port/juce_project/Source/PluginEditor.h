@@ -24,6 +24,8 @@ private:
     // access the processor object that created it.
     CreativeMidiGeneratorAudioProcessor& audioProcessor;
 
+    juce::LookAndFeel_V4 lookAndFeel;
+
     ToolbarComponent toolbarComponent;
     GeneratorSectionComponent generatorSectionComponent;
     LooperSectionComponent looperSectionComponent;

@@ -34,6 +34,8 @@ private:
     juce::String testDualEuclideanGeneratorPatterns();
     juce::String testLooperBasic();
     juce::String testLooperRecording();
+    juce::String testLooperCapture();
+    juce::String testLooperAutoRecapture();
 
     // Вспомогательные методы
     juce::String formatTestResult(const juce::String& testName, bool passed, const juce::String& details = "");

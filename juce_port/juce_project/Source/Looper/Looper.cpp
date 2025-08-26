@@ -205,7 +205,7 @@ double Looper::getPlaybackProgress() const
     return std::fmod(progress, 1.0);
 }
 
-juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, double timeOffset)
+juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, [[maybe_unused]] double timeOffset)
 {
     juce::MidiMessage result = message;
 
@@ -264,4 +264,127 @@ void Looper::startRecording()
 void Looper::stopRecording()
 {
     setRecording(false);
+}
+
+void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm)
+{
+    clear();
+
+    std::map<int, std::pair<double, int>> noteOnEvents; // note -> { beatTime, velocity }
+
+    const double beatsPerSample = bpm / 60.0 / sampleRate;
+
+    for (const auto metadata : buffer)
+    {
+        const auto message = metadata.getMessage();
+        const double beatTime = metadata.samplePosition * beatsPerSample;
+
+        if (message.isNoteOn())
+        {
+            noteOnEvents[message.getNoteNumber()] = { beatTime, message.getVelocity() };
+        }
+        else if (message.isNoteOff())
+        {
+            auto it = noteOnEvents.find(message.getNoteNumber());
+            if (it != noteOnEvents.end())
+            {
+                RecordedNote newNote;
+                newNote.message = juce::MidiMessage::noteOn(message.getChannel(),
+                                                            message.getNoteNumber(),
+                                                            (juce::uint8)it->second.second);
+                newNote.beatTime = it->second.first;
+                newNote.durationInBeats = beatTime - it->second.first;
+
+                // Ensure duration is not negative or zero
+                if (newNote.durationInBeats <= 0)
+                    newNote.durationInBeats = 0.125; // Default to a 32nd note
+
+                recordedNotes.push_back(newNote);
+                noteOnEvents.erase(it);
+            }
+        }
+    }
+
+    // Update loop points based on content
+    if (!recordedNotes.empty())
+    {
+        double maxBeat = 0.0;
+        for (const auto& note : recordedNotes)
+        {
+            maxBeat = std::max(maxBeat, note.beatTime + note.durationInBeats);
+        }
+        loopStart = 0.0;
+        // Round up to the nearest bar
+        loopEnd = std::ceil(maxBeat / 4.0) * 4.0;
+        if (loopEnd == 0) loopEnd = 4.0; // Ensure at least one bar
+    }
+    else
+    {
+        loopStart = 0.0;
+        loopEnd = 4.0; // Default to 4 beats if empty
+    }
+}
+
+void Looper::quantize(double gridInBeats)
+{
+    if (gridInBeats <= 0) return;
+
+    for (auto& note : recordedNotes)
+    {
+        note.beatTime = std::round(note.beatTime / gridInBeats) * gridInBeats;
+    }
+}
+
+void Looper::doubleLoop()
+{
+    if (recordedNotes.empty())
+    {
+        loopEnd *= 2.0;
+        return;
+    }
+
+    const double currentDuration = loopEnd - loopStart;
+    std::vector<RecordedNote> notesToAppend;
+    for (const auto& note : recordedNotes)
+    {
+        RecordedNote newNote = note;
+        newNote.beatTime += currentDuration;
+        notesToAppend.push_back(newNote);
+    }
+
+    recordedNotes.insert(recordedNotes.end(), notesToAppend.begin(), notesToAppend.end());
+    loopEnd *= 2.0;
+}
+
+void Looper::splitLoop(bool keepFirstHalf)
+{
+    const double currentDuration = loopEnd - loopStart;
+    const double midpoint = loopStart + currentDuration / 2.0;
+
+    if (keepFirstHalf)
+    {
+        recordedNotes.erase(
+            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
+                [&](const RecordedNote& note) {
+                    return note.beatTime >= midpoint;
+                }),
+            recordedNotes.end());
+        loopEnd = midpoint;
+    }
+    else // keep second half
+    {
+        recordedNotes.erase(
+            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
+                [&](const RecordedNote& note) {
+                    return note.beatTime < midpoint;
+                }),
+            recordedNotes.end());
+
+        // Shift remaining notes to the start of the loop
+        for (auto& note : recordedNotes)
+        {
+            note.beatTime -= midpoint;
+        }
+        loopEnd = midpoint;
+    }
 }

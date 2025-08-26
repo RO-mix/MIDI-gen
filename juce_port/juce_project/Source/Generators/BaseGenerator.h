@@ -37,4 +37,22 @@ public:
         // Default implementation does nothing.
         // Derived classes can override this if they use scales.
     }
+
+    /**
+     * @brief Generates a pattern of a specific duration.
+     *
+     * This function can be overridden by generators to produce a complete
+     * musical pattern, which can be used for features like 'Capture'.
+     *
+     * @param durationInBeats The desired duration of the pattern in beats.
+     * @param apvts A reference to the AudioProcessorValueTreeState.
+     * @param sampleRate The current sample rate.
+     * @return A MidiBuffer containing the generated pattern.
+     */
+    virtual juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
+    {
+        // Default implementation returns an empty buffer.
+        juce::ignoreUnused(durationInBeats, apvts, sampleRate);
+        return juce::MidiBuffer();
+    }
 };

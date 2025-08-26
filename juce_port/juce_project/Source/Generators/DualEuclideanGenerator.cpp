@@ -19,20 +19,24 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
     int rateChoice = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_RATE");
 
     // Fetch params for machine A
-    int stepsA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A");
-    int pulsesA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A");
-    int noteA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A");
-    int velocityA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A");
-    int devA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A");
+    float stepsA_raw = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A");
+    int stepsA = static_cast<int>(stepsA_raw);
+    float pulsesA_raw = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A");
+    int pulsesA = static_cast<int>(pulsesA_raw);
+    juce::Logger::writeToLog("Type conversion debug A: stepsA_raw=" + juce::String(stepsA_raw) + ", cast=" + juce::String(stepsA) +
+                             ", pulsesA_raw=" + juce::String(pulsesA_raw) + ", cast=" + juce::String(pulsesA));
+    int noteA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A"));
+    int velocityA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A"));
+    int devA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A"));
     bool bipolarA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_A") > 0.5f;
     float durationBiasA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_A");
 
     // Fetch params for machine B
-    int stepsB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B");
-    int pulsesB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B");
-    int noteB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B");
-    int velocityB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B");
-    int devB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B");
+    int stepsB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B"));
+    int pulsesB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B"));
+    int noteB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B"));
+    int velocityB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B"));
+    int devB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B"));
     bool bipolarB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_B") > 0.5f;
     float durationBiasB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B");
 
@@ -112,6 +116,39 @@ void DualEuclideanGenerator::setScale(int rootNote, const std::vector<int>& scal
 {
     rootNote_ = rootNote;
     scaleNotes_ = scaleNotes;
+}
+
+juce::MidiBuffer DualEuclideanGenerator::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
+{
+    juce::MidiBuffer pattern;
+    double virtualBeat = 0.0;
+    const double bpm = *apvts.getRawParameterValue("BPM");
+    [[maybe_unused]] const double beatsPerSample = bpm / 60.0 / sampleRate;
+
+    // Reset state to ensure predictable pattern generation
+    lastBeat_ = -1.0;
+    masterStepA_ = -1;
+    masterStepB_ = -1;
+
+    while (virtualBeat < durationInBeats)
+    {
+        process(pattern, apvts, sampleRate, virtualBeat);
+        // The process method internally advances lastBeat_, so we just need to update our virtualBeat
+        virtualBeat = lastBeat_;
+    }
+
+    // Correct sample positions to be relative to the start of the buffer
+    juce::MidiBuffer finalPattern;
+    int firstSamplePos = -1;
+
+    for (const auto metadata : pattern)
+    {
+        if (firstSamplePos < 0)
+            firstSamplePos = metadata.samplePosition;
+        finalPattern.addEvent(metadata.getMessage(), metadata.samplePosition - firstSamplePos);
+    }
+
+    return finalPattern;
 }
 
 int DualEuclideanGenerator::getDeviatedNote(int baseNote, int deviationRange, bool isBipolar, int& lastDeviation)

@@ -12,8 +12,7 @@ Makefile
 !CMakeLists.txt
 
 # Build directories
-Builds/
-build/
+
 
 # IDE files
 *.user

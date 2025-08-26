@@ -2,7 +2,7 @@
 #include <JuceHeader.h>
 #include <iostream>
 
-int main(int argc, char* argv[])
+int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[])
 {
     // No JUCE initialiser - attempt a truly headless build without a message manager.
 

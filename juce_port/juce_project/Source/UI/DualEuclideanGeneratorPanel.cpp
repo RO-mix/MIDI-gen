@@ -6,7 +6,7 @@ DualEuclideanGeneratorPanel::DualEuclideanGeneratorPanel(CreativeMidiGeneratorAu
     // Machine A
     addAndMakeVisible(machineALabel);
     machineALabel.setText("Machine A", juce::dontSendNotification);
-    machineALabel.setFont(juce::Font(16.0f).withStyle(juce::Font::bold));
+    machineALabel.setFont(juce::Font(juce::FontOptions(16.0f)));
 
     addAndMakeVisible(stepsSliderA);
     stepsAttachmentA = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "DUAL_EUCLIDEAN_STEPS_A", stepsSliderA);
@@ -53,7 +53,7 @@ DualEuclideanGeneratorPanel::DualEuclideanGeneratorPanel(CreativeMidiGeneratorAu
     // Machine B
     addAndMakeVisible(machineBLabel);
     machineBLabel.setText("Machine B", juce::dontSendNotification);
-    machineBLabel.setFont(juce::Font(16.0f).withStyle(juce::Font::bold));
+    machineBLabel.setFont(juce::Font(juce::FontOptions(16.0f)));
 
     addAndMakeVisible(stepsSliderB);
     stepsAttachmentB = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "DUAL_EUCLIDEAN_STEPS_B", stepsSliderB);

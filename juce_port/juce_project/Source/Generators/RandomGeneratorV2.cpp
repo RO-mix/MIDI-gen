@@ -10,7 +10,7 @@ RandomGeneratorV2::RandomGeneratorV2()
 void RandomGeneratorV2::process(juce::MidiBuffer& midiMessages,
                                 juce::AudioProcessorValueTreeState& apvts,
                                 double sampleRate,
-                                double currentBeat)
+                                [[maybe_unused]] double currentBeat)
 {
     // This is a placeholder implementation and can be greatly improved.
     // It demonstrates using the parameters to create the "ambient burst" effect.
@@ -25,7 +25,7 @@ void RandomGeneratorV2::process(juce::MidiBuffer& midiMessages,
 
     float baseDurationMap[] = { 16.0f, 8.0f, 4.0f, 3.0f, 2.0f, 1.0f };
     int durationChoice = static_cast<int>(*baseDurationParam);
-    double baseDuration = (durationChoice >= 0 && durationChoice < std::size(baseDurationMap)) ? baseDurationMap[durationChoice] : 4.0;
+    double baseDuration = (durationChoice >= 0 && static_cast<size_t>(durationChoice) < std::size(baseDurationMap)) ? baseDurationMap[durationChoice] : 4.0;
 
     // Check if it's time for a new event
     if (currentBeat >= nextEventBeat_)
@@ -41,7 +41,7 @@ void RandomGeneratorV2::process(juce::MidiBuffer& midiMessages,
 
             float accelMap[] = { 1.0f, 0.5f, 0.25f, 0.125f }; // Simplified mapping
             int accelChoice = static_cast<int>(*accelParam);
-            double noteInterval = (accelChoice >= 0 && accelChoice < std::size(accelMap)) ? accelMap[accelChoice] : 0.25;
+            double noteInterval = (accelChoice >= 0 && static_cast<size_t>(accelChoice) < std::size(accelMap)) ? accelMap[accelChoice] : 0.25;
 
             for (int i = 0; i < 8; ++i)
             {
@@ -73,13 +73,13 @@ void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProce
 
     if (!minNoteParam || !maxNoteParam || !channelParam || !bpmParam) return;
 
-    int minNote = *minNoteParam;
-    int maxNote = *maxNoteParam;
-    int channel = *channelParam;
+    int minNote = static_cast<int>(*minNoteParam);
+    int maxNote = static_cast<int>(*maxNoteParam);
+    int channel = static_cast<int>(*channelParam);
     double bpm = *bpmParam;
 
-    int noteNumber = randomEngine_() % (maxNote - minNote + 1) + minNote;
-    int velocity = randomEngine_() % 60 + 40; // 40-99
+    int noteNumber = static_cast<int>(randomEngine_() % (maxNote - minNote + 1)) + minNote;
+    int velocity = static_cast<int>(randomEngine_() % 60) + 40; // 40-99
 
     double durationInBeats = 1.0; // Fixed duration for now
     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
@@ -94,6 +94,8 @@ void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNote
 {
     // This generator does not currently use scales in its logic,
     // but the method must be implemented.
+    juce::Logger::writeToLog("Unused code debug: rootNote=" + juce::String(rootNote) +
+                             ", scaleNotes size=" + juce::String(scaleNotes.size()));
     juce::ignoreUnused(rootNote, scaleNotes);
 }
 
@@ -102,7 +104,7 @@ juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::Aud
     juce::MidiBuffer pattern;
     double virtualBeat = 0.0;
     const double bpm = *apvts.getRawParameterValue("BPM");
-    const double beatsPerSample = bpm / 60.0 / sampleRate;
+    [[maybe_unused]] const double beatsPerSample = bpm / 60.0 / sampleRate;
 
     // Reset state to ensure predictable pattern generation
     lastBeat_ = -1.0;

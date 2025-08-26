@@ -6,9 +6,9 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
+                     #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
+                     #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        ),
@@ -17,6 +17,11 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
     : apvts(*this, nullptr, "Parameters", createParameterLayout())
 #endif
 {
+    // Debug log for toolchain warning
+    juce::Logger::writeToLog("Toolchain debug: Platform=" + juce::String(JUCE_WINDOWS ? "Windows" : "Other") +
+                             ", 64-bit=" + juce::String(JUCE_64BIT ? "Yes" : "No") +
+                             ", Pointer size=" + juce::String(sizeof(void*)) +
+                             ", MSVC Version=" + juce::String(_MSC_VER));
     availableGenerators[0] = std::make_unique<RandomGenerator>();
     availableGenerators[1] = std::make_unique<EuclideanGenerator>();
     availableGenerators[2] = std::make_unique<DualEuclideanGenerator>();
@@ -87,16 +92,16 @@ int CreativeMidiGeneratorAudioProcessor::getCurrentProgram()
     return 0;
 }
 
-void CreativeMidiGeneratorAudioProcessor::setCurrentProgram (int index)
+void CreativeMidiGeneratorAudioProcessor::setCurrentProgram ([[maybe_unused]] int index)
 {
 }
 
-const juce::String CreativeMidiGeneratorAudioProcessor::getProgramName (int index)
+const juce::String CreativeMidiGeneratorAudioProcessor::getProgramName ([[maybe_unused]] int index)
 {
     return {};
 }
 
-void CreativeMidiGeneratorAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void CreativeMidiGeneratorAudioProcessor::changeProgramName ([[maybe_unused]] int index, [[maybe_unused]] const juce::String& newName)
 {
 }
 
@@ -137,6 +142,11 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     currentBpm_ = getCurrentBpm();
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     double beatsPerSample = 1.0 / samplesPerBeat_;
+
+    // Debug log for type conversion warnings (C4244, C4267)
+    juce::Logger::writeToLog("Type conversion debug: beatsPerSample=" + juce::String(beatsPerSample) +
+                             ", buffer size=" + juce::String(buffer.getNumSamples()) +
+                             ", int cast=" + juce::String(static_cast<int>(beatsPerSample * buffer.getNumSamples())));
 
     juce::MidiBuffer generatedMidi;
     if (activeGenerator != nullptr && isPlaying_)
@@ -202,9 +212,9 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
 {
-    if (auto* playHead = getPlayHead())
+    if (auto* currentPlayHead = getPlayHead())
     {
-        if (auto positionInfo = playHead->getPosition())
+        if (auto positionInfo = currentPlayHead->getPosition())
         {
             if (positionInfo->getBpm().hasValue())
             {
@@ -462,6 +472,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     auto add = [&](auto&& param) {
         params.push_back(std::forward<decltype(param)>(param));
     };
+
+    // Debug log for error C1189: check parameter IDs and names
+    juce::Logger::writeToLog("=== Parameter Layout Creation (VST3 Conflict Check) ===");
+    for (auto& param : params) {
+        juce::Logger::writeToLog("Param ID: " + param->paramID + ", Name: " + param->name);
+    }
+    juce::Logger::writeToLog("Total params: " + juce::String(params.size()));
+    juce::Logger::writeToLog("End Parameter Layout ===");
 
     // === Global and Toolbar ===
     add(std::make_unique<juce::AudioParameterFloat>("BPM", "BPM", 20.0f, 300.0f, 120.0f));

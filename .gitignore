@@ -26,8 +26,12 @@
 .builds
 *.pidb
 *.log
+*.tlog
 *.svclog
 *.scc
+*.db
+*.opendb
+*.bin
 
 # Visual Studio Code
 .vscode/
@@ -90,3 +94,4 @@ _deps
 # Logs
 *.log
 logs/
+.gitignore

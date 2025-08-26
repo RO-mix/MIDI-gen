@@ -205,7 +205,7 @@ double Looper::getPlaybackProgress() const
     return std::fmod(progress, 1.0);
 }
 
-juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, double timeOffset)
+juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, [[maybe_unused]] double timeOffset)
 {
     juce::MidiMessage result = message;
 

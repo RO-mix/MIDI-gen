@@ -28,11 +28,13 @@ if (-not (Test-Path $JucePath)) {
     Write-Host "JUCE found: $JucePath" -ForegroundColor Green
 }
 
-# Create build directory
-if (-not (Test-Path $BuildPath)) {
-    New-Item -ItemType Directory -Path $BuildPath | Out-Null
-    Write-Host "Created build directory: $BuildPath" -ForegroundColor Cyan
+# Create or clean build directory
+if (Test-Path $BuildPath) {
+    Remove-Item -Recurse -Force $BuildPath | Out-Null
+    Write-Host "Cleaned existing build directory: $BuildPath" -ForegroundColor Cyan
 }
+New-Item -ItemType Directory -Path $BuildPath | Out-Null
+Write-Host "Created fresh build directory: $BuildPath" -ForegroundColor Cyan
 
 # Configure CMake
 Write-Host "Configuring CMake..." -ForegroundColor Yellow
@@ -42,6 +44,8 @@ try {
         "-S", $ProjectPath,
         "-B", $BuildPath,
         "-G", "Unix Makefiles",
+        "-DCMAKE_C_COMPILER=gcc",
+        "-DCMAKE_CXX_COMPILER=g++",
         "-DJUCE_PATH=$JucePath",
         "-DCMAKE_BUILD_TYPE=Release"
     )

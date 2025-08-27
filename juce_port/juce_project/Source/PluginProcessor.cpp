@@ -18,7 +18,6 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
 #endif
 {
 #if JUCE_WINDOWS
-    // Debug log for toolchain warning
     juce::Logger::writeToLog("Toolchain debug: Platform=" + juce::String(JUCE_WINDOWS ? "Windows" : "Other") +
                              ", 64-bit=" + juce::String(JUCE_64BIT ? "Yes" : "No") +
                              ", Pointer size=" + juce::String(sizeof(void*)) +
@@ -144,7 +143,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     if (sendAllNotesOff)
     {
         int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
-        midiMessages.clear(); // Clear any pending notes from the previous generator state
+        midiMessages.clear();
         midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
         sendAllNotesOff = false;
     }
@@ -153,39 +152,13 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     double beatsPerSample = 1.0 / samplesPerBeat_;
 
-    juce::MidiBuffer generatedMidi;
-    if (activeGenerator != nullptr && isPlaying_)
-    {
-        activeGenerator->process(generatedMidi, apvts, sampleRate_, currentBeat_);
-    }
-
+    double lastBlockBeat = currentBeat_;
     currentBeat_ += buffer.getNumSamples() * beatsPerSample;
-
-    if (looper_ && looper_->isRecordingActive())
-    {
-        for (const auto metadata : midiMessages)
-        {
-            looper_->recordNote(metadata.getMessage(), currentBeat_ + (metadata.samplePosition * beatsPerSample));
-        }
-    }
-
-    midiMessages.addEvents(generatedMidi, 0, -1, 0);
-
-    if (looper_ && looper_->isPlaybackActive())
-    {
-        bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
-        juce::MidiBuffer looperBuffer = looper_->getPlaybackBuffer(buffer.getNumSamples(), currentBeat_, currentBeat_ + (beatsPerSample * buffer.getNumSamples()), isPadMode);
-        if (looperBuffer.getNumEvents() > 0)
-        {
-            juce::Logger::writeToLog("PROCESS: Looper generated " + juce::String(looperBuffer.getNumEvents()) + " events this block.");
-        }
-        midiMessages.addEvents(looperBuffer, 0, -1, 0);
-    }
 
     if (isGeneratorSwitchPending_)
     {
-        double nextQuarterNote = std::ceil(currentBeat_ * 4.0) / 4.0;
-        if (currentBeat_ >= nextQuarterNote && lastBeat_ < nextQuarterNote)
+        double nextQuarterNote = std::ceil(lastBlockBeat * 4.0) / 4.0;
+        if (currentBeat_ >= nextQuarterNote && lastBlockBeat < nextQuarterNote)
         {
             juce::Logger::writeToLog("SWITCHING GENERATOR at beat: " + juce::String(currentBeat_));
             updateActiveGenerator();
@@ -195,13 +168,38 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
     if (pendingLooperAction != LooperAction::None)
     {
-        if (currentBeat_ >= looperActionTriggerTime_ && lastBeat_ < looperActionTriggerTime_)
+        if (currentBeat_ >= looperActionTriggerTime_ && lastBlockBeat < looperActionTriggerTime_)
         {
             executePendingLooperAction();
         }
     }
 
-    lastBeat_ = currentBeat_;
+    juce::MidiBuffer generatedMidi;
+    if (activeGenerator != nullptr && isPlaying_ && !looper_->isPlaybackActive())
+    {
+        activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat);
+    }
+
+    if (looper_ && looper_->isRecordingActive())
+    {
+        for (const auto metadata : midiMessages)
+        {
+            looper_->recordNote(metadata.getMessage(), lastBlockBeat + (metadata.samplePosition * beatsPerSample));
+        }
+    }
+
+    midiMessages.addEvents(generatedMidi, 0, -1, 0);
+
+    if (looper_ && looper_->isPlaybackActive())
+    {
+        bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
+        juce::MidiBuffer looperBuffer = looper_->getPlaybackBuffer(buffer.getNumSamples(), lastBlockBeat, currentBeat_, isPadMode);
+        if (looperBuffer.getNumEvents() > 0)
+        {
+            juce::Logger::writeToLog("PROCESS: Looper generated " + juce::String(looperBuffer.getNumEvents()) + " events this block.");
+        }
+        midiMessages.addEvents(looperBuffer, 0, -1, 0);
+    }
 }
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
@@ -272,7 +270,7 @@ void CreativeMidiGeneratorAudioProcessor::scheduleLooperAction(LooperAction acti
     pendingLooperAction = action;
     double nextTriggerTime = 0.0;
 
-    double beatForCalc = (lastBeat_ > 0) ? lastBeat_ : currentBeat_;
+    double beatForCalc = currentBeat_;
 
     switch (quantizeChoice)
     {

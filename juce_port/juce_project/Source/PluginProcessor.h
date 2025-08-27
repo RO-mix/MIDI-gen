@@ -164,6 +164,7 @@ private:
 
     juce::ListenerList<Listener> listeners_;
     LooperAction pendingLooperAction = LooperAction::None;
+    double looperActionTriggerTime_ = 0.0;
 
     bool isGeneratorSwitchPending_ = false;
     int pendingGeneratorChoice_ = 0;

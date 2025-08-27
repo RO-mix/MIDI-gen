@@ -144,6 +144,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     if (sendAllNotesOff)
     {
         int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.clear(); // Clear any pending notes from the previous generator state
         midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
         sendAllNotesOff = false;
     }
@@ -152,35 +153,14 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     double beatsPerSample = 1.0 / samplesPerBeat_;
 
-    // Debug log for type conversion warnings (C4244, C4267)
-    juce::Logger::writeToLog("Type conversion debug: beatsPerSample=" + juce::String(beatsPerSample) +
-                             ", buffer size=" + juce::String(buffer.getNumSamples()) +
-                             ", int cast=" + juce::String(static_cast<int>(beatsPerSample * buffer.getNumSamples())));
-
     juce::MidiBuffer generatedMidi;
     if (activeGenerator != nullptr && isPlaying_)
     {
         activeGenerator->process(generatedMidi, apvts, sampleRate_, currentBeat_);
     }
 
-    // --- Populate Live Notes for Timeline ---
-    for (const auto metadata : generatedMidi)
-    {
-        auto message = metadata.getMessage();
-        if (message.isNoteOn())
-        {
-            liveNotes.push_back({
-                message.getNoteNumber(),
-                message.getVelocity(),
-                currentBeat_ + (metadata.samplePosition / samplesPerBeat_),
-                0.25 // Fixed duration for now (16th note)
-            });
-        }
-    }
-
     currentBeat_ += buffer.getNumSamples() * beatsPerSample;
 
-    // --- Pass incoming MIDI to looper if recording ---
     if (looper_ && looper_->isRecordingActive())
     {
         for (const auto metadata : midiMessages)
@@ -189,22 +169,8 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    // --- Trim Live Notes Buffer ---
-    const double historyToKeepInBeats = 32.0; // Keep 8 bars of history
-    if (liveNotes.size() > 256) // Trigger cleanup when buffer gets large
-    {
-         liveNotes.erase(
-            std::remove_if(liveNotes.begin(), liveNotes.end(),
-                [&](const LiveNote& note) {
-                    return note.startTime < (currentBeat_ - historyToKeepInBeats);
-                }),
-            liveNotes.end());
-    }
-
-
     midiMessages.addEvents(generatedMidi, 0, -1, 0);
 
-    // --- Looper Processing ---
     if (looper_ && looper_->isPlaybackActive())
     {
         bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
@@ -216,73 +182,26 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         midiMessages.addEvents(looperBuffer, 0, -1, 0);
     }
 
-    // --- Handle Generator Switching ---
     if (isGeneratorSwitchPending_)
     {
         double nextQuarterNote = std::ceil(currentBeat_ * 4.0) / 4.0;
         if (currentBeat_ >= nextQuarterNote && lastBeat_ < nextQuarterNote)
         {
+            juce::Logger::writeToLog("SWITCHING GENERATOR at beat: " + juce::String(currentBeat_));
             updateActiveGenerator();
             isGeneratorSwitchPending_ = false;
         }
     }
 
-    // --- Handle Action Quantization ---
     if (pendingLooperAction != LooperAction::None)
     {
-        auto* quantizeParam = apvts.getRawParameterValue("LOOPER_ACTION_QUANTIZE");
-        int quantizeChoice = quantizeParam ? static_cast<int>(quantizeParam->load()) : 3;
-
-        bool triggerAction = false;
-        double nextTriggerTime = 0.0;
-        double beatInBar = fmod(currentBeat_, 4.0);
-
-        switch (quantizeChoice)
-        {
-            case 0: // Instant
-                triggerAction = true;
-                break;
-            case 1: // Next 1/2
-                nextTriggerTime = std::ceil(currentBeat_ * 2.0) / 2.0;
-                break;
-            case 2: // Next Beat
-                nextTriggerTime = std::ceil(currentBeat_);
-                break;
-            case 3: // Next Bar
-                nextTriggerTime = std::ceil(currentBeat_ / 4.0) * 4.0;
-                if (nextTriggerTime < currentBeat_ + 0.01) nextTriggerTime += 4.0;
-                break;
-        }
-
-        if (triggerAction || (currentBeat_ >= nextTriggerTime && lastBeat_ < nextTriggerTime))
+        if (currentBeat_ >= looperActionTriggerTime_ && lastBeat_ < looperActionTriggerTime_)
         {
             executePendingLooperAction();
         }
     }
 
     lastBeat_ = currentBeat_;
-    // --- Handle Auto-Recapture ---
-    if (looper_ && looper_->isPlaybackActive() && autoRecapturePeriod_ > 0)
-    {
-        double currentProgress = looper_->getPlaybackProgress();
-        // Check for loop wrap-around
-        if (currentProgress < lastLoopPosition_)
-        {
-            loopCounter_++;
-            if (loopCounter_ >= autoRecapturePeriod_)
-            {
-                captureFromGenerator();
-                loopCounter_ = 0;
-            }
-        }
-        lastLoopPosition_ = currentProgress;
-    }
-    else if (looper_ && !looper_->isPlaybackActive())
-    {
-        // Reset if looper stops
-        loopCounter_ = 0;
-        lastLoopPosition_ = 0.0;
-    }
 }
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
@@ -338,27 +257,68 @@ void CreativeMidiGeneratorAudioProcessor::setStateInformation (const void* data,
 // Looper Methods
 //==============================================================================
 
+void CreativeMidiGeneratorAudioProcessor::scheduleLooperAction(LooperAction action)
+{
+    auto* quantizeParam = apvts.getRawParameterValue("LOOPER_ACTION_QUANTIZE");
+    int quantizeChoice = quantizeParam ? static_cast<int>(quantizeParam->load()) : 3;
+
+    if (quantizeChoice == 0)
+    {
+        pendingLooperAction = action;
+        executePendingLooperAction();
+        return;
+    }
+
+    pendingLooperAction = action;
+    double nextTriggerTime = 0.0;
+
+    double beatForCalc = (lastBeat_ > 0) ? lastBeat_ : currentBeat_;
+
+    switch (quantizeChoice)
+    {
+        case 1: // Next 1/2
+            nextTriggerTime = std::ceil(beatForCalc * 2.0) / 2.0;
+            break;
+        case 2: // Next Beat
+            nextTriggerTime = std::ceil(beatForCalc);
+            break;
+        case 3: // Next Bar
+            nextTriggerTime = std::ceil(beatForCalc / 4.0) * 4.0;
+            break;
+    }
+
+    if (nextTriggerTime < currentBeat_ + 0.05)
+    {
+        switch (quantizeChoice)
+        {
+            case 1: nextTriggerTime += 0.5; break;
+            case 2: nextTriggerTime += 1.0; break;
+            case 3: nextTriggerTime += 4.0; break;
+        }
+    }
+
+    looperActionTriggerTime_ = nextTriggerTime;
+    juce::Logger::writeToLog("SCHEDULING action " + juce::String((int)action) + " for beat " + juce::String(looperActionTriggerTime_));
+}
+
 void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
 {
-    pendingLooperAction = LooperAction::ToggleRecord;
+    scheduleLooperAction(LooperAction::ToggleRecord);
 }
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 {
-    juce::Logger::writeToLog("UI: Looper Play/Stop button clicked.");
-    pendingLooperAction = LooperAction::TogglePlay;
+    scheduleLooperAction(LooperAction::TogglePlay);
 }
 
 void CreativeMidiGeneratorAudioProcessor::clearLooper()
 {
-    // Clear is always instant
     if (looper_) looper_->clear();
 }
 
 void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
 {
-    juce::Logger::writeToLog("UI: Capture button clicked.");
-    pendingLooperAction = LooperAction::Capture;
+    scheduleLooperAction(LooperAction::Capture);
 }
 
 void CreativeMidiGeneratorAudioProcessor::quantizeLooper()
@@ -368,22 +328,21 @@ void CreativeMidiGeneratorAudioProcessor::quantizeLooper()
         auto* gridParam = apvts.getRawParameterValue("LOOPER_QUANTIZE_GRID");
         if (!gridParam) return;
 
-        int choice = static_cast<int>(*gridParam);
+        int choice = static_cast<int>(gridParam->load());
         double gridInBeats = 0.0;
         switch (choice) {
-            // "Off", "1/4", "1/8", "1/16", "1/32", "1/64"
             case 1: gridInBeats = 1.0; break;
             case 2: gridInBeats = 0.5; break;
             case 3: gridInBeats = 0.25; break;
             case 4: gridInBeats = 0.125; break;
             case 5: gridInBeats = 0.0625; break;
-            default: break; // Case 0 is "Off"
+            default: break;
         }
 
         if (gridInBeats > 0)
-        {
             looper_->quantize(gridInBeats);
-        }
+        else
+            looper_->unquantize();
     }
 }
 
@@ -406,12 +365,12 @@ void CreativeMidiGeneratorAudioProcessor::generateLooperVariation()
 
 void CreativeMidiGeneratorAudioProcessor::doubleLoop()
 {
-    pendingLooperAction = LooperAction::Double;
+    scheduleLooperAction(LooperAction::Double);
 }
 
 void CreativeMidiGeneratorAudioProcessor::splitLoop()
 {
-    pendingLooperAction = LooperAction::Split;
+    scheduleLooperAction(LooperAction::Split);
 }
 
 void CreativeMidiGeneratorAudioProcessor::setLooperMode(LooperMode mode)
@@ -489,12 +448,11 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
     else if (parameterID == "LOOPER_RECAPTURE_PERIOD")
     {
         int choice = static_cast<int>(newValue);
-        // Maps to {"Off", "Every 2 loops", "Every 3 loops", "Every 4 loops", "Every 6 loops", "Every 8 loops"}
         int periodMap[] = { 0, 2, 3, 4, 6, 8 };
-        if (choice >= 0 && choice < std::size(periodMap))
+        if (choice >= 0 && static_cast<size_t>(choice) < std::size(periodMap))
         {
             autoRecapturePeriod_ = periodMap[choice];
-            loopCounter_ = 0; // Reset counter on change
+            loopCounter_ = 0;
         }
     }
 }
@@ -624,14 +582,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     auto add = [&](auto&& param) {
         params.push_back(std::forward<decltype(param)>(param));
     };
-
-    // Debug log for error C1189: check parameter IDs and names
-    juce::Logger::writeToLog("=== Parameter Layout Creation (VST3 Conflict Check) ===");
-    for (auto& param : params) {
-        juce::Logger::writeToLog("Param ID: " + param->paramID + ", Name: " + param->name);
-    }
-    juce::Logger::writeToLog("Total params: " + juce::String(params.size()));
-    juce::Logger::writeToLog("End Parameter Layout ===");
 
     // === Global and Toolbar ===
     add(std::make_unique<juce::AudioParameterFloat>("BPM", "BPM", 20.0f, 300.0f, 120.0f));

@@ -1,24 +1,35 @@
 #include <JuceHeader.h>
 #include "Duration.h"
 #include <algorithm> // for std::max/min
+#include <random>
 
 namespace Duration
 {
-    float lerp(float a, float b, float t)
-    {
-        return a * (1.0f - t) + b * t;
-    }
-
     float getBiasedDuration(float bias, float baseRate)
     {
         // Ensure bias is in the [0, 1] range
         bias = std::max(0.0f, std::min(1.0f, bias));
 
-        // When bias is 0, duration is longer (rate * 4)
-        // When bias is 1, duration is shorter (rate)
-        float longDuration = baseRate * 4.0f;
-        float shortDuration = baseRate;
+        float longDuration = baseRate * 2.0f;
+        float shortDuration = baseRate / 2.0f;
 
-        return lerp(longDuration, shortDuration, bias);
+        static std::mt19937 gen(std::random_device{}());
+        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+        float duration;
+        // The bias is the probability of choosing the short duration.
+        if (dist(gen) < bias)
+        {
+            duration = shortDuration;
+        }
+        else
+        {
+            duration = longDuration;
+        }
+
+        juce::String logMessage = "Duration Logic: bias=" + juce::String(bias) + ", rate=" + juce::String(baseRate) + " -> duration=" + juce::String(duration);
+        juce::Logger::writeToLog(logMessage);
+
+        return duration;
     }
 }

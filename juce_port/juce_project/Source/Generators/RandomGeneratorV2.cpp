@@ -182,3 +182,9 @@ juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::Aud
 
     return pattern;
 }
+
+void RandomGeneratorV2::reset()
+{
+    lastBeat_ = -1.0;
+    nextEventBeat_ = 0.0;
+}

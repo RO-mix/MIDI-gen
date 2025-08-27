@@ -55,4 +55,9 @@ public:
         juce::ignoreUnused(durationInBeats, apvts, sampleRate);
         return juce::MidiBuffer();
     }
+
+    virtual void reset()
+    {
+        // Default implementation does nothing.
+    }
 };

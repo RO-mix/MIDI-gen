@@ -85,7 +85,7 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
             }
 
             int velocity = calculateVelocity(velocityBias, maxVelocity);
-            float durationInBeats = Duration::getProbabilisticDuration(durationBias);
+            float durationInBeats = Duration::getBiasedDuration(durationBias, rate);
             int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
             // Calculate sample position for the note on event
@@ -140,6 +140,11 @@ int RandomGenerator::calculateVelocity(float bias, int maxVelocity)
     int random_velocity = 1 + static_cast<int>(random_val * (maxVelocity - 1));
 
     return juce::jlimit(1, maxVelocity, random_velocity);
+}
+
+void RandomGenerator::reset()
+{
+    lastBeat_ = -1.0;
 }
 
 juce::MidiBuffer RandomGenerator::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
@@ -215,7 +220,7 @@ juce::MidiBuffer RandomGenerator::getPattern(double durationInBeats, juce::Audio
             }
 
             int velocity = calculateVelocity(velocityBias, maxVelocity);
-            float duration = Duration::getProbabilisticDuration(durationBias);
+            float duration = Duration::getBiasedDuration(durationBias, rate);
             int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
             int durationInSamples = static_cast<int>(duration * (60.0 / bpm) * sampleRate);
 

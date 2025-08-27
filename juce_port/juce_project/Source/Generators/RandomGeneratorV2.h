@@ -16,6 +16,7 @@ public:
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
     juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate) override;
+    void reset() override;
 
 private:
     void generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate);

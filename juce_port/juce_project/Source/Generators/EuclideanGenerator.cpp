@@ -97,7 +97,7 @@ void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
             }
 
             generatedNote = juce::jlimit(0, 127, generatedNote);
-            float durationInBeats = Duration::getProbabilisticDuration(durationBiasParam ? durationBiasParam->load() : 0.5f);
+            float durationInBeats = Duration::getBiasedDuration(durationBiasParam ? durationBiasParam->load() : 0.5f, rate);
             int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
             int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
@@ -193,7 +193,7 @@ juce::MidiBuffer EuclideanGenerator::getPattern(double durationInBeats, juce::Au
             }
 
             generatedNote = juce::jlimit(0, 127, generatedNote);
-            float duration = Duration::getProbabilisticDuration(durationBiasParam ? durationBiasParam->load() : 0.5f);
+            float duration = Duration::getBiasedDuration(durationBiasParam ? durationBiasParam->load() : 0.5f, rate);
             int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
             int durationInSamples = static_cast<int>(duration * (60.0 / bpm) * sampleRate);
 
@@ -206,4 +206,11 @@ juce::MidiBuffer EuclideanGenerator::getPattern(double durationInBeats, juce::Au
     }
 
     return patternBuffer;
+}
+
+void EuclideanGenerator::reset()
+{
+    lastBeat_ = -1.0;
+    currentStep_ = -1;
+    lastDeviation_ = 0;
 }

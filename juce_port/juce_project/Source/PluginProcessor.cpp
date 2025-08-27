@@ -502,6 +502,10 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
     sendAllNotesOff = true;
+    if (activeGenerator)
+    {
+        activeGenerator->reset();
+    }
     activeGenerator = availableGenerators[pendingGeneratorChoice_].get();
     updateScale();
 }

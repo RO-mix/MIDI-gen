@@ -3,6 +3,10 @@
 RandomGeneratorV2Panel::RandomGeneratorV2Panel(CreativeMidiGeneratorAudioProcessor& p)
     : audioProcessor(p)
 {
+    addAndMakeVisible(noteSelectionLabel);
+    noteSelectionLabel.setText("Note Selection", juce::dontSendNotification);
+    noteSelectionLabel.setFont(juce::Font(16.0f, juce::Font::bold));
+
     addAndMakeVisible(minNoteLabel);
     minNoteLabel.setText("Min Note", juce::dontSendNotification);
     addAndMakeVisible(minNoteSlider);
@@ -12,6 +16,10 @@ RandomGeneratorV2Panel::RandomGeneratorV2Panel(CreativeMidiGeneratorAudioProcess
     maxNoteLabel.setText("Max Note", juce::dontSendNotification);
     addAndMakeVisible(maxNoteSlider);
     maxNoteAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "RANDOM_V2_MAX_NOTE", maxNoteSlider);
+
+    addAndMakeVisible(engineLabel);
+    engineLabel.setText("Ambient Burst Engine", juce::dontSendNotification);
+    engineLabel.setFont(juce::Font(16.0f, juce::Font::bold));
 
     addAndMakeVisible(burstProbabilityLabel);
     burstProbabilityLabel.setText("Burst Probability", juce::dontSendNotification);
@@ -39,6 +47,7 @@ RandomGeneratorV2Panel::RandomGeneratorV2Panel(CreativeMidiGeneratorAudioProcess
 
     addAndMakeVisible(burstPatternLabel);
     burstPatternLabel.setText("Burst Pattern", juce::dontSendNotification);
+    burstPatternLabel.setFont(juce::Font(16.0f, juce::Font::bold));
     for (int i = 0; i < 8; ++i)
     {
         auto slider = std::make_unique<juce::Slider>();
@@ -74,8 +83,15 @@ void RandomGeneratorV2Panel::resized()
         bounds.removeFromTop(spacing);
     };
 
+    noteSelectionLabel.setBounds(bounds.removeFromTop(20));
+    bounds.removeFromTop(spacing);
+
     createRow(minNoteLabel, minNoteSlider);
     createRow(maxNoteLabel, maxNoteSlider);
+
+    engineLabel.setBounds(bounds.removeFromTop(20));
+    bounds.removeFromTop(spacing);
+
     createRow(burstProbabilityLabel, burstProbabilitySlider);
     createRow(noteProbabilityLabel, noteProbabilitySlider);
 
@@ -87,7 +103,8 @@ void RandomGeneratorV2Panel::resized()
     bounds.removeFromTop(spacing);
 
     burstPatternLabel.setBounds(bounds.removeFromTop(20));
-    auto patternArea = bounds.removeFromTop(60);
+    bounds.removeFromTop(spacing);
+    auto patternArea = bounds.removeFromTop(80);
     int sliderWidth = patternArea.getWidth() / 8;
     for (const auto& slider : burstPatternSliders)
     {

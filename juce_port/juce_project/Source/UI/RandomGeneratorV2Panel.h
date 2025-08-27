@@ -46,6 +46,8 @@ private:
     juce::Label baseDurationLabel;
     juce::Label accelerationLabel;
     juce::Label burstPatternLabel;
+    juce::Label noteSelectionLabel;
+    juce::Label engineLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RandomGeneratorV2Panel)
 };

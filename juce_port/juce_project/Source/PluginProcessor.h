@@ -61,6 +61,15 @@ public:
     bool isPlaying() const;
 
     //==============================================================================
+    struct VariationData
+    {
+        float bassIntensity = 0.0f;
+        float midIntensity = 0.0f;
+        float highIntensity = 0.0f;
+        int rootNote = 0;
+        std::vector<int> scaleNotes;
+    };
+
     // Looper Control Methods for UI
     void toggleLooperRecord();
     void toggleLooperPlay();

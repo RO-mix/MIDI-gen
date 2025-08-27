@@ -91,7 +91,7 @@ void Looper::clear()
     isRecording = false;
 }
 
-juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime)
+juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
 {
     if (!isPlaying)
         return juce::MidiBuffer();
@@ -99,7 +99,7 @@ juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, dou
     switch (currentMode)
     {
         case LooperMode::MidiLooper:
-            return processMidiLooperBuffer(numSamples, startTime, endTime);
+            return processMidiLooperBuffer(numSamples, startTime, endTime, isPadMode);
         case LooperMode::GenerationLooper:
             return processGenerationLooperBuffer(numSamples, startTime, endTime);
         default:
@@ -148,7 +148,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
             }
 
             // Schedule Note Off
-            if (noteOffBeat >= startTime && noteOffBeat < endTime)
+            if (!isPadMode && noteOffBeat >= startTime && noteOffBeat < endTime)
             {
                 int samplePosition = static_cast<int>(((noteOffBeat - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
@@ -272,12 +272,15 @@ void Looper::setLoopPoints(double start, double end)
     loopEnd = end;
 }
 
-void Looper::startRecording(double maxDuration)
+void Looper::startRecording(double maxDuration, bool isOverdub)
 {
     maxRecordLengthBeats_ = maxDuration;
     recordingStartTime_ = playbackHead_; // Assume playbackHead is current time
     setRecording(true);
-    clear(); // Очищаем предыдущие записи
+    if (!isOverdub)
+    {
+        clear(); // Очищаем предыдущие записи
+    }
 }
 
 void Looper::stopRecording()
@@ -285,9 +288,12 @@ void Looper::stopRecording()
     setRecording(false);
 }
 
-void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm)
+void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub)
 {
-    clear();
+    if (!isOverdub)
+    {
+        clear();
+    }
 
     std::map<int, std::pair<double, int>> noteOnEvents; // note -> { beatTime, velocity }
 
@@ -324,6 +330,8 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
         }
     }
 
+    pristine_loop_ = recordedNotes; // Save a pristine copy
+
     // Update loop points based on content
     if (!recordedNotes.empty())
     {
@@ -344,10 +352,20 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
     }
 }
 
+void Looper::unquantize()
+{
+    recordedNotes = pristine_loop_;
+}
+
 void Looper::quantize(double gridInBeats)
 {
-    if (gridInBeats <= 0) return;
+    if (gridInBeats <= 0)
+    {
+        unquantize();
+        return;
+    }
 
+    recordedNotes = pristine_loop_; // Start from the pristine version
     for (auto& note : recordedNotes)
     {
         note.beatTime = std::round(note.beatTime / gridInBeats) * gridInBeats;
@@ -373,6 +391,72 @@ void Looper::doubleLoop()
 
     recordedNotes.insert(recordedNotes.end(), notesToAppend.begin(), notesToAppend.end());
     loopEnd *= 2.0;
+    pristine_loop_ = recordedNotes; // This becomes the new pristine state
+}
+
+void Looper::generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes)
+{
+    if (pristine_loop_.empty() || scaleNotes.empty()) return;
+
+    recordedNotes.clear();
+    juce::Random random;
+
+    for (const auto& note : pristine_loop_)
+    {
+        recordedNotes.push_back(note); // Add the original note
+
+        int noteNumber = note.message.getNoteNumber();
+
+        // Bass variations (add octave down)
+        if (noteNumber < 48 && random.nextFloat() < bassIntensity)
+        {
+            auto bassNote = note;
+            bassNote.message = juce::MidiMessage::noteOn(note.message.getChannel(), noteNumber - 12, note.message.getVelocity());
+            recordedNotes.push_back(bassNote);
+        }
+
+        // Mid variations (add thirds/fifths)
+        if (noteNumber >= 48 && noteNumber < 72 && random.nextFloat() < midIntensity)
+        {
+            // Find note in scale
+            int noteIndex = -1;
+            for(int i=0; i< (int)scaleNotes.size(); ++i)
+            {
+                if((noteNumber % 12) == (rootNote % 12 + scaleNotes[i]) % 12)
+                {
+                    noteIndex = i;
+                    break;
+                }
+            }
+
+            if(noteIndex != -1)
+            {
+                int harmonyIndex = (noteIndex + (random.nextBool() ? 2 : 4)) % scaleNotes.size(); // Third or Fifth
+                int octave = noteNumber / 12;
+                int harmonyNoteNumber = octave * 12 + rootNote + scaleNotes[harmonyIndex];
+                if (harmonyNoteNumber >= 128) harmonyNoteNumber -= 12;
+
+                auto harmonyNote = note;
+                harmonyNote.message = juce::MidiMessage::noteOn(note.message.getChannel(), harmonyNoteNumber, (juce::uint8)(note.message.getVelocity() * 0.8f));
+                recordedNotes.push_back(harmonyNote);
+            }
+        }
+
+        // High variations (add grace notes)
+        if (noteNumber >= 72 && random.nextFloat() < highIntensity)
+        {
+            int graceNoteNumber = noteNumber + (random.nextBool() ? 1 : -1);
+            if (graceNoteNumber < 0 || graceNoteNumber > 127) graceNoteNumber = noteNumber;
+
+            auto graceNote = note;
+            graceNote.beatTime -= 0.05;
+            graceNote.durationInBeats = 0.05;
+            graceNote.message = juce::MidiMessage::noteOn(note.message.getChannel(), graceNoteNumber, (juce::uint8)(note.message.getVelocity() * 0.7f));
+            recordedNotes.push_back(graceNote);
+        }
+    }
+
+    pristine_loop_ = recordedNotes; // The variation becomes the new pristine state
 }
 
 void Looper::splitLoop(bool keepFirstHalf)
@@ -406,4 +490,5 @@ void Looper::splitLoop(bool keepFirstHalf)
         }
         loopEnd = midpoint;
     }
+    pristine_loop_ = recordedNotes; // This becomes the new pristine state
 }

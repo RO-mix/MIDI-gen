@@ -23,13 +23,13 @@ public:
     // Основные методы управления
     void recordNote(const juce::MidiMessage& message, double beatTime);
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
-    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm);
+    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub);
     void startPlayback();
     void stopPlayback();
     void clear();
 
     // Буфер воспроизведения
-    juce::MidiBuffer getPlaybackBuffer(int numSamples, double startTime, double endTime);
+    juce::MidiBuffer getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode);
 
     // Управление режимом
     void setMode(LooperMode mode);
@@ -37,6 +37,8 @@ public:
 
     // Управление лупом
     void quantize(double gridInBeats);
+    void unquantize();
+    void generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes);
     void doubleLoop();
     void splitLoop(bool keepFirstHalf = true);
     void setLoopPoints(double start, double end);
@@ -69,7 +71,7 @@ public:
 
 
     // Управление записью/воспроизведением
-    void startRecording(double maxDuration);
+    void startRecording(double maxDuration, bool isOverdub);
     void stopRecording();
     void setRecording(bool recording);
 
@@ -80,6 +82,7 @@ private:
 
     // Данные записи
     std::vector<RecordedNote> recordedNotes;
+    std::vector<RecordedNote> pristine_loop_;
     std::vector<RecordedNote> pendingNotes; // For calculating duration
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
@@ -101,7 +104,7 @@ private:
     bool reverse = false;
 
     // Внутренние методы
-    juce::MidiBuffer processMidiLooperBuffer(int numSamples, double startTime, double endTime);
+    juce::MidiBuffer processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode);
     juce::MidiBuffer processGenerationLooperBuffer(int numSamples, double startTime, double endTime);
     juce::MidiMessage applyEffects(const juce::MidiMessage& message, double timeOffset);
 };

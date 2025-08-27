@@ -204,6 +204,14 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
     midiMessages.addEvents(generatedMidi, 0, -1, 0);
 
+    // --- Looper Processing ---
+    if (looper_ && looper_->isPlaybackActive())
+    {
+        bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
+        juce::MidiBuffer looperBuffer = looper_->getPlaybackBuffer(buffer.getNumSamples(), currentBeat_, currentBeat_ + (beatsPerSample * buffer.getNumSamples()), isPadMode);
+        midiMessages.addEvents(looperBuffer, 0, -1, 0);
+    }
+
     // --- Handle Action Quantization ---
     if (pendingLooperAction != LooperAction::None)
     {
@@ -364,7 +372,19 @@ void CreativeMidiGeneratorAudioProcessor::quantizeLooper()
 
 void CreativeMidiGeneratorAudioProcessor::generateLooperVariation()
 {
-    // TODO: Implement variation logic
+    if (looper_)
+    {
+        float bassIntensity = apvts.getRawParameterValue("LOOPER_INTENSITY_BASS")->load();
+        float midIntensity = apvts.getRawParameterValue("LOOPER_INTENSITY_MID")->load();
+        float highIntensity = apvts.getRawParameterValue("LOOPER_INTENSITY_HIGH")->load();
+
+        int rootNote = static_cast<int>(apvts.getRawParameterValue("ROOT_NOTE")->load());
+        int scaleChoice = static_cast<int>(apvts.getRawParameterValue("SCALE")->load());
+        ScaleType scaleType = static_cast<ScaleType>(scaleChoice);
+        auto scaleNotes = Scales::getScaleNotes(rootNote, Scales::getScaleName(scaleType));
+
+        looper_->generateVariations(bassIntensity, midIntensity, highIntensity, rootNote, scaleNotes);
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::doubleLoop()
@@ -516,7 +536,8 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                     if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
                         recordLengthInBeats = lengthMap[choice];
                 }
-                looper_->startRecording(recordLengthInBeats);
+                bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
+                looper_->startRecording(recordLengthInBeats, isOverdub);
             }
             break;
         }
@@ -538,8 +559,9 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                 }
                 if (durationInBeats > 0)
                 {
+                    bool isOverdub = apvts.getRawParameterValue("LOOPER_CAPTURE_OVERDUB")->load() > 0.5f;
                     auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
-                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load());
+                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub);
                     looper_->startPlayback();
                 }
             }

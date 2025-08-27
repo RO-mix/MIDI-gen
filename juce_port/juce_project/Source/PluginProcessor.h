@@ -142,6 +142,7 @@ private:
 
     bool sendAllNotesOff = false;
 
+public:
     //==============================================================================
     class Listener
     {

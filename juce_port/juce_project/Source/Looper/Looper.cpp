@@ -114,7 +114,7 @@ void Looper::setMode(LooperMode mode)
     clear();
 }
 
-juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime)
+juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
 {
     playbackHead_ = startTime;
     juce::MidiBuffer buffer;
@@ -153,8 +153,8 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 int samplePosition = static_cast<int>(((noteOffBeat - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
-                    auto noteOff = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
-                    buffer.addEvent(applyEffects(noteOff, 0), samplePosition);
+                    auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
+                    buffer.addEvent(applyEffects(noteOffMessage, 0), samplePosition);
                 }
             }
         }

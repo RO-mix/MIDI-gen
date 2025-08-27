@@ -180,6 +180,15 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
     currentBeat_ += buffer.getNumSamples() * beatsPerSample;
 
+    // --- Pass incoming MIDI to looper if recording ---
+    if (looper_ && looper_->isRecordingActive())
+    {
+        for (const auto metadata : midiMessages)
+        {
+            looper_->recordNote(metadata.getMessage(), currentBeat_ + (metadata.samplePosition * beatsPerSample));
+        }
+    }
+
     // --- Trim Live Notes Buffer ---
     const double historyToKeepInBeats = 32.0; // Keep 8 bars of history
     if (liveNotes.size() > 256) // Trigger cleanup when buffer gets large
@@ -195,6 +204,40 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
     midiMessages.addEvents(generatedMidi, 0, -1, 0);
 
+    // --- Handle Action Quantization ---
+    if (pendingLooperAction != LooperAction::None)
+    {
+        auto* quantizeParam = apvts.getRawParameterValue("LOOPER_ACTION_QUANTIZE");
+        int quantizeChoice = quantizeParam ? static_cast<int>(quantizeParam->load()) : 3;
+
+        bool triggerAction = false;
+        double nextTriggerTime = 0.0;
+        double beatInBar = fmod(currentBeat_, 4.0);
+
+        switch (quantizeChoice)
+        {
+            case 0: // Instant
+                triggerAction = true;
+                break;
+            case 1: // Next 1/2
+                nextTriggerTime = std::ceil(currentBeat_ * 2.0) / 2.0;
+                break;
+            case 2: // Next Beat
+                nextTriggerTime = std::ceil(currentBeat_);
+                break;
+            case 3: // Next Bar
+                nextTriggerTime = std::ceil(currentBeat_ / 4.0) * 4.0;
+                if (nextTriggerTime < currentBeat_ + 0.01) nextTriggerTime += 4.0;
+                break;
+        }
+
+        if (triggerAction || (currentBeat_ >= nextTriggerTime && lastBeat_ < nextTriggerTime))
+        {
+            executePendingLooperAction();
+        }
+    }
+
+    lastBeat_ = currentBeat_;
     // --- Handle Auto-Recapture ---
     if (looper_ && looper_->isPlaybackActive() && autoRecapturePeriod_ > 0)
     {
@@ -274,64 +317,23 @@ void CreativeMidiGeneratorAudioProcessor::setStateInformation (const void* data,
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
 {
-    if (looper_)
-    {
-        if (looper_->isRecordingActive())
-        {
-            looper_->stopRecording();
-            looper_->startPlayback();
-        }
-        else
-        {
-            looper_->startRecording();
-        }
-    }
+    pendingLooperAction = LooperAction::ToggleRecord;
 }
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 {
-    if (looper_)
-    {
-        sendAllNotesOff = true;
-        if (looper_->isPlaybackActive())
-            looper_->stopPlayback();
-        else
-            looper_->startPlayback();
-    }
+    pendingLooperAction = LooperAction::TogglePlay;
 }
 
 void CreativeMidiGeneratorAudioProcessor::clearLooper()
 {
+    // Clear is always instant
     if (looper_) looper_->clear();
 }
 
 void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
 {
-    if (activeGenerator && looper_)
-    {
-        auto* durationParam = apvts.getRawParameterValue("LOOPER_CAPTURE_DURATION");
-        if (!durationParam) return;
-
-        // Map choice to duration in beats. Must match the order in createParameterLayout.
-        // {"1/8 bar", "1/4 bar", "1/2 bar", "1 bar", "2 bars", "4 bars"}
-        int choice = static_cast<int>(*durationParam);
-        double durationInBeats = 0.0;
-        switch (choice) {
-            case 0: durationInBeats = 0.5; break;
-            case 1: durationInBeats = 1.0; break;
-            case 2: durationInBeats = 2.0; break;
-            case 3: durationInBeats = 4.0; break;
-            case 4: durationInBeats = 8.0; break;
-            case 5: durationInBeats = 16.0; break;
-        }
-
-        if (durationInBeats > 0)
-        {
-            auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
-            looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load());
-            looper_->startPlayback();
-        }
-    }
+    pendingLooperAction = LooperAction::Capture;
 }
 
 void CreativeMidiGeneratorAudioProcessor::quantizeLooper()
@@ -367,14 +369,12 @@ void CreativeMidiGeneratorAudioProcessor::generateLooperVariation()
 
 void CreativeMidiGeneratorAudioProcessor::doubleLoop()
 {
-    if (looper_)
-        looper_->doubleLoop();
+    pendingLooperAction = LooperAction::Double;
 }
 
 void CreativeMidiGeneratorAudioProcessor::splitLoop()
 {
-    if (looper_)
-        looper_->splitLoop();
+    pendingLooperAction = LooperAction::Split;
 }
 
 void CreativeMidiGeneratorAudioProcessor::setLooperMode(LooperMode mode)
@@ -430,6 +430,7 @@ double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const
 void CreativeMidiGeneratorAudioProcessor::togglePlayback()
 {
     isPlaying_ = !isPlaying_;
+    listeners_.call([&](Listener& l) { l.playbackStateChanged(isPlaying_); });
 }
 
 bool CreativeMidiGeneratorAudioProcessor::isPlaying() const
@@ -479,6 +480,84 @@ void CreativeMidiGeneratorAudioProcessor::updateScale()
 
         activeGenerator->setScale(rootNote, Scales::getScaleNotes(rootNote, Scales::getScaleName(scaleType)));
     }
+}
+
+void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
+{
+    if (!looper_) return;
+
+    switch (pendingLooperAction)
+    {
+        case LooperAction::TogglePlay:
+        {
+            sendAllNotesOff = true;
+            if (looper_->isPlaybackActive())
+                looper_->stopPlayback();
+            else
+                looper_->startPlayback();
+            listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
+            break;
+        }
+        case LooperAction::ToggleRecord:
+        {
+            if (looper_->isRecordingActive())
+            {
+                looper_->stopRecording();
+                looper_->startPlayback();
+            }
+            else
+            {
+                auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
+                double recordLengthInBeats = 16.0;
+                if (lengthParam)
+                {
+                    int choice = static_cast<int>(lengthParam->load());
+                    double lengthMap[] = { 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0 };
+                    if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
+                        recordLengthInBeats = lengthMap[choice];
+                }
+                looper_->startRecording(recordLengthInBeats);
+            }
+            break;
+        }
+        case LooperAction::Capture:
+        {
+            if (activeGenerator && looper_)
+            {
+                auto* durationParam = apvts.getRawParameterValue("LOOPER_CAPTURE_DURATION");
+                if (!durationParam) break;
+                int choice = static_cast<int>(durationParam->load());
+                double durationInBeats = 0.0;
+                switch (choice) {
+                    case 0: durationInBeats = 0.5; break;
+                    case 1: durationInBeats = 1.0; break;
+                    case 2: durationInBeats = 2.0; break;
+                    case 3: durationInBeats = 4.0; break;
+                    case 4: durationInBeats = 8.0; break;
+                    case 5: durationInBeats = 16.0; break;
+                }
+                if (durationInBeats > 0)
+                {
+                    auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
+                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load());
+                    looper_->startPlayback();
+                }
+            }
+            break;
+        }
+        case LooperAction::Double:
+            looper_->doubleLoop();
+            break;
+        case LooperAction::Split:
+            looper_->splitLoop();
+            break;
+        case LooperAction::Clear:
+            looper_->clear();
+            break;
+        case LooperAction::None:
+            break;
+    }
+    pendingLooperAction = LooperAction::None;
 }
 
 

@@ -26,8 +26,8 @@ namespace Duration
             final_weights.push_back(lerp(WEIGHTS_LONG[i], WEIGHTS_SHORT[i], bias));
         }
 
+        static std::mt19937 gen(std::random_device{}());
         std::discrete_distribution<> dist(final_weights.begin(), final_weights.end());
-        std::mt19937 gen(std::random_device{}());
 
         return DURATION_VALUES[dist(gen)];
     }

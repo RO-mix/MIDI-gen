@@ -89,5 +89,8 @@ void RandomGeneratorPanel::resized()
     createRow(noteProbabilityLabel, noteProbabilitySlider);
     createRow(durationBiasLabel, durationBiasSlider);
     createRow(rateLabel, rateCombo);
-    createRow(addCC74Label, addCC74Toggle);
+
+    auto checkboxRow = bounds.removeFromTop(rowHeight);
+    addCC74Label.setBounds(checkboxRow.removeFromLeft(labelWidth));
+    addCC74Toggle.setBounds(checkboxRow.removeFromLeft(30));
 }

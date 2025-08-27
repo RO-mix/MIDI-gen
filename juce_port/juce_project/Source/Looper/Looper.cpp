@@ -22,6 +22,13 @@ void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 {
     if (!isRecording) return;
 
+    if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
+    {
+        stopRecording();
+        startPlayback();
+        return;
+    }
+
     if (message.isNoteOn())
     {
         // Add to pending notes, waiting for a note off
@@ -119,26 +126,36 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
     if (loopDuration <= 0.0)
         return buffer;
 
-    // Вычисляем текущую позицию в лупе
-    double currentTime = startTime;
-    double loopPosition = std::fmod(currentTime - loopStart, loopDuration);
+    double blockDuration = endTime - startTime;
 
-    // Находим ноты, которые должны сыграться в этом временном окне
     for (const auto& note : recordedNotes)
     {
-        double noteTimeInLoop = note.beatTime - loopStart;
-
-        // Проверяем, попадает ли нота в текущее окно воспроизведения
-        if (noteTimeInLoop >= loopPosition && noteTimeInLoop < loopPosition + (endTime - startTime))
+        // Check two full loops to handle events that wrap around the start/end of the block
+        for (int i = -1; i <= 1; ++i)
         {
-            // Вычисляем время ноты в сэмплах
-            double timeInSamples = (noteTimeInLoop - loopPosition) * (numSamples / (endTime - startTime));
-            int samplePosition = static_cast<int>(timeInSamples);
+            double loopOffset = i * loopDuration;
+            double noteOnBeat = note.beatTime + loopOffset;
+            double noteOffBeat = note.beatTime + note.durationInBeats + loopOffset;
 
-            if (samplePosition >= 0 && samplePosition < numSamples)
+            // Schedule Note On
+            if (noteOnBeat >= startTime && noteOnBeat < endTime)
             {
-                juce::MidiMessage processedMessage = applyEffects(note.message, note.beatTime - startTime);
-                buffer.addEvent(processedMessage, samplePosition);
+                int samplePosition = static_cast<int>(((noteOnBeat - startTime) / blockDuration) * numSamples);
+                if (samplePosition >= 0 && samplePosition < numSamples)
+                {
+                    buffer.addEvent(applyEffects(note.message, 0), samplePosition);
+                }
+            }
+
+            // Schedule Note Off
+            if (noteOffBeat >= startTime && noteOffBeat < endTime)
+            {
+                int samplePosition = static_cast<int>(((noteOffBeat - startTime) / blockDuration) * numSamples);
+                if (samplePosition >= 0 && samplePosition < numSamples)
+                {
+                    auto noteOff = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
+                    buffer.addEvent(applyEffects(noteOff, 0), samplePosition);
+                }
             }
         }
     }
@@ -255,8 +272,10 @@ void Looper::setLoopPoints(double start, double end)
     loopEnd = end;
 }
 
-void Looper::startRecording()
+void Looper::startRecording(double maxDuration)
 {
+    maxRecordLengthBeats_ = maxDuration;
+    recordingStartTime_ = playbackHead_; // Assume playbackHead is current time
     setRecording(true);
     clear(); // Очищаем предыдущие записи
 }

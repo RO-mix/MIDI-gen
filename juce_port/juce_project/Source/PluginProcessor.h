@@ -134,5 +134,24 @@ private:
     bool sendAllNotesOff = false;
 
     //==============================================================================
+    class Listener
+    {
+    public:
+        virtual ~Listener() = default;
+        virtual void playbackStateChanged(bool isPlaying) = 0;
+        virtual void looperStateChanged(bool isPlaying) = 0;
+    };
+
+    void addListener(Listener* listener) { listeners_.add(listener); }
+    void removeListener(Listener* listener) { listeners_.remove(listener); }
+
+    //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CreativeMidiGeneratorAudioProcessor)
+private:
+    double lastBeat_ = 0.0;
+    enum class LooperAction { None, TogglePlay, ToggleRecord, Capture, Double, Split, Clear };
+    void executePendingLooperAction();
+
+    juce::ListenerList<Listener> listeners_;
+    LooperAction pendingLooperAction = LooperAction::None;
 };

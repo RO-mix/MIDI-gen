@@ -69,7 +69,7 @@ public:
 
 
     // Управление записью/воспроизведением
-    void startRecording();
+    void startRecording(double maxDuration);
     void stopRecording();
     void setRecording(bool recording);
 
@@ -87,6 +87,8 @@ private:
     bool isRecording = false;
     bool isPlaying = false;
     double playbackHead_ = 0.0;
+    double recordingStartTime_ = 0.0;
+    double maxRecordLengthBeats_ = 16.0; // Default to 4 bars
 
     // Параметры лупа
     double loopStart = 0.0;

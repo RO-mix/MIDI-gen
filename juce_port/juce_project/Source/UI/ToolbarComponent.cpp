@@ -66,10 +66,24 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     addAndMakeVisible(savePresetButton);
     savePresetButton.setButtonText("Save Preset");
     savePresetButton.onClick = [this] { savePreset(); };
+
+    audioProcessor.addListener(this);
 }
 
 ToolbarComponent::~ToolbarComponent()
 {
+    audioProcessor.removeListener(this);
+}
+
+void ToolbarComponent::playbackStateChanged(bool isPlaying)
+{
+    startButton.setButtonText(isPlaying ? "Stop" : "Start");
+}
+
+void ToolbarComponent::looperStateChanged(bool isPlaying)
+{
+    // The main start/stop button in the toolbar is not affected by the looper state.
+    juce::ignoreUnused(isPlaying);
 }
 
 void ToolbarComponent::paint(juce::Graphics& g)

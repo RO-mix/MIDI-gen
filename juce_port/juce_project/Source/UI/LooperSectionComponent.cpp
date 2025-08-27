@@ -98,10 +98,24 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     highIntensityAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "LOOPER_INTENSITY_HIGH", highIntensitySlider);
 
     addAndMakeVisible(timelineComponent);
+
+    audioProcessor.addListener(this);
 }
 
 LooperSectionComponent::~LooperSectionComponent()
 {
+    audioProcessor.removeListener(this);
+}
+
+void LooperSectionComponent::playbackStateChanged(bool isPlaying)
+{
+    // The looper play button is not affected by the main generator's state.
+    juce::ignoreUnused(isPlaying);
+}
+
+void LooperSectionComponent::looperStateChanged(bool isPlaying)
+{
+    playButton.setButtonText(isPlaying ? "Stop" : "Play");
 }
 
 void LooperSectionComponent::paint(juce::Graphics& g)

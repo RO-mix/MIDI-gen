@@ -3,7 +3,8 @@
 #include <JuceHeader.h>
 #include "../PluginProcessor.h"
 
-class ToolbarComponent : public juce::Component
+class ToolbarComponent : public juce::Component,
+                         public CreativeMidiGeneratorAudioProcessor::Listener
 {
 public:
     ToolbarComponent(CreativeMidiGeneratorAudioProcessor&);
@@ -11,6 +12,10 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+
+    // CreativeMidiGeneratorAudioProcessor::Listener overrides
+    void playbackStateChanged(bool isPlaying) override;
+    void looperStateChanged(bool isPlaying) override;
 
 private:
     CreativeMidiGeneratorAudioProcessor& audioProcessor;

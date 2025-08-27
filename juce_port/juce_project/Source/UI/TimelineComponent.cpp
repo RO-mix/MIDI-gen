@@ -32,13 +32,15 @@ void TimelineComponent::paint(juce::Graphics& g)
         // --- Live Generator View ---
         const float viewWidthBeats = 16.0f; // Show 4 bars
 
-        // Draw Grid
+        // Draw Scrolling Grid
         const double gridResolution = 0.25; // 16th notes
-        const int numGridLines = static_cast<int>(viewWidthBeats / gridResolution);
-        for (int i = 1; i <= numGridLines; ++i)
+        double currentBeat = audioProcessor.getCurrentBeat();
+        double startBeat = currentBeat - fmod(currentBeat, gridResolution);
+
+        for (double beat = startBeat; beat < currentBeat + viewWidthBeats + gridResolution; beat += gridResolution)
         {
-            const double beat = i * gridResolution;
-            const float x = (float)(beat / viewWidthBeats) * getWidth();
+            float x = getWidth() * (float)((beat - currentBeat) / viewWidthBeats);
+            if (x < 0 || x > getWidth()) continue;
 
             const bool isBarLine = (fmod(beat, 4.0) < 0.001);
             const bool isBeatLine = (fmod(beat, 1.0) < 0.001);

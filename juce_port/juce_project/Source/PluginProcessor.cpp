@@ -270,9 +270,14 @@ void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
     if (looper_)
     {
         if (looper_->isRecordingActive())
+        {
             looper_->stopRecording();
+            looper_->startPlayback();
+        }
         else
+        {
             looper_->startRecording();
+        }
     }
 }
 
@@ -316,6 +321,7 @@ void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
         {
             auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
             looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load());
+            looper_->startPlayback();
         }
     }
 }

@@ -27,5 +27,4 @@ private:
 
     // Helper methods
     int calculateVelocity(float bias, int maxVelocity);
-    float getRandomDuration(float bias);
 };

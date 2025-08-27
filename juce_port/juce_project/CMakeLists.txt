@@ -18,6 +18,7 @@ set(CORE_SOURCE_FILES
     Source/Generators/RandomGeneratorV2.cpp
     Source/Generators/Duration.cpp
     Source/Theory/Scales.cpp
+    Source/Theory/Duration.cpp
     Source/Looper/Looper.cpp
 )
 

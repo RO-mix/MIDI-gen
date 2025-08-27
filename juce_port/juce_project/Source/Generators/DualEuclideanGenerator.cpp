@@ -1,4 +1,5 @@
 #include "DualEuclideanGenerator.h"
+#include "../Theory/Duration.h"
 
 DualEuclideanGenerator::DualEuclideanGenerator()
 {
@@ -63,7 +64,7 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                 if (patternA_[masterStepA_])
                 {
                     int finalNoteA = getDeviatedNote(noteA, devA, bipolarA, lastDeviationA_);
-                    float durationInBeats = getRandomDuration(durationBiasA);
+                    float durationInBeats = Duration::getProbabilisticDuration(durationBiasA);
                     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
                     int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
                     if (samplePos < 0) samplePos = 0;
@@ -79,7 +80,7 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                 if (patternB_[masterStepB_])
                 {
                     int finalNoteB = getDeviatedNote(noteB, devB, bipolarB, lastDeviationB_);
-                    float durationInBeats = getRandomDuration(durationBiasB);
+                    float durationInBeats = Duration::getProbabilisticDuration(durationBiasB);
                     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
                     int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
                     if (samplePos < 0) samplePos = 0;
@@ -120,35 +121,74 @@ void DualEuclideanGenerator::setScale(int rootNote, const std::vector<int>& scal
 
 juce::MidiBuffer DualEuclideanGenerator::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
 {
-    juce::MidiBuffer pattern;
-    double virtualBeat = 0.0;
-    const double bpm = *apvts.getRawParameterValue("BPM");
-    [[maybe_unused]] const double beatsPerSample = bpm / 60.0 / sampleRate;
+    juce::MidiBuffer patternBuffer;
+    double currentBeat = 0.0;
 
-    // Reset state to ensure predictable pattern generation
-    lastBeat_ = -1.0;
-    masterStepA_ = -1;
-    masterStepB_ = -1;
+    // Fetch global parameters
+    int channel = *apvts.getRawParameterValue("MIDI_CHANNEL");
+    double bpm = *apvts.getRawParameterValue("BPM");
+    float noteProbability = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY");
+    int rateChoice = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_RATE");
 
-    while (virtualBeat < durationInBeats)
+    // Fetch params for machine A
+    int stepsA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A"));
+    int pulsesA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A"));
+    int noteA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A"));
+    int velocityA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A"));
+    int devA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A"));
+    bool bipolarA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_A") > 0.5f;
+    float durationBiasA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_A");
+
+    // Fetch params for machine B
+    int stepsB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B"));
+    int pulsesB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B"));
+    int noteB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B"));
+    int velocityB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B"));
+    int devB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B"));
+    bool bipolarB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_B") > 0.5f;
+    float durationBiasB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B");
+
+    updatePattern(patternA_, stepsA, pulsesA);
+    updatePattern(patternB_, stepsB, pulsesB);
+
+    float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
+    float rate = (rateChoice >= 0 && rateChoice < std::size(rateMap)) ? rateMap[rateChoice] : 0.25f;
+
+    int stepCounterA = 0;
+    int stepCounterB = 0;
+    lastDeviationA_ = 0;
+    lastDeviationB_ = 0;
+
+    while (currentBeat < durationInBeats)
     {
-        process(pattern, apvts, sampleRate, virtualBeat);
-        // The process method internally advances lastBeat_, so we just need to update our virtualBeat
-        virtualBeat = lastBeat_;
+        if (random_.nextFloat() < noteProbability)
+        {
+            if (!patternA_.empty() && patternA_[stepCounterA % stepsA])
+            {
+                int finalNoteA = getDeviatedNote(noteA, devA, bipolarA, lastDeviationA_);
+                float durationInBeatsA = Duration::getProbabilisticDuration(durationBiasA);
+                int durationInSamplesA = static_cast<int>(durationInBeatsA * (60.0 / bpm) * sampleRate);
+                int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
+                patternBuffer.addEvent(juce::MidiMessage::noteOn(channel, finalNoteA, (juce::uint8)velocityA), samplePos);
+                patternBuffer.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamplesA);
+            }
+
+            if (!patternB_.empty() && patternB_[stepCounterB % stepsB])
+            {
+                int finalNoteB = getDeviatedNote(noteB, devB, bipolarB, lastDeviationB_);
+                float durationInBeatsB = Duration::getProbabilisticDuration(durationBiasB);
+                int durationInSamplesB = static_cast<int>(durationInBeatsB * (60.0 / bpm) * sampleRate);
+                int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
+                patternBuffer.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
+                patternBuffer.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamplesB);
+            }
+        }
+        currentBeat += rate;
+        stepCounterA++;
+        stepCounterB++;
     }
 
-    // Correct sample positions to be relative to the start of the buffer
-    juce::MidiBuffer finalPattern;
-    int firstSamplePos = -1;
-
-    for (const auto metadata : pattern)
-    {
-        if (firstSamplePos < 0)
-            firstSamplePos = metadata.samplePosition;
-        finalPattern.addEvent(metadata.getMessage(), metadata.samplePosition - firstSamplePos);
-    }
-
-    return finalPattern;
+    return patternBuffer;
 }
 
 int DualEuclideanGenerator::getDeviatedNote(int baseNote, int deviationRange, bool isBipolar, int& lastDeviation)
@@ -177,16 +217,4 @@ int DualEuclideanGenerator::getDeviatedNote(int baseNote, int deviationRange, bo
         }
     }
     return baseNote;
-}
-
-float DualEuclideanGenerator::getRandomDuration(float bias)
-{
-    // Using the same musical duration logic from RandomGenerator
-    float r1 = random_.nextFloat();
-    float r2 = random_.nextFloat();
-    float bates = (r1 + r2) / 2.0f;
-    float biased_center = juce::jmap(bias, 0.0f, 1.0f, 2.0f, 0.1f);
-    float range = 1.5f;
-    float duration = biased_center + (bates - 0.5f) * range;
-    return juce::jlimit(0.05f, 4.0f, duration);
 }

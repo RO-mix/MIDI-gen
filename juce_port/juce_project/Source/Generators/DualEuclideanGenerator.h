@@ -31,7 +31,6 @@ private:
     // Helper methods
     void updatePattern(std::vector<bool>& pattern, int steps, int pulses);
     int getDeviatedNote(int baseNote, int deviationRange, bool isBipolar, int& lastDeviation);
-    float getRandomDuration(float bias);
 
     // Random number generation
     juce::Random random_;

@@ -31,6 +31,35 @@ void TimelineComponent::paint(juce::Graphics& g)
     {
         // --- Live Generator View ---
         const float viewWidthBeats = 16.0f; // Show 4 bars
+
+        // Draw Grid
+        const double gridResolution = 0.25; // 16th notes
+        const int numGridLines = static_cast<int>(viewWidthBeats / gridResolution);
+        for (int i = 1; i <= numGridLines; ++i)
+        {
+            const double beat = i * gridResolution;
+            const float x = (float)(beat / viewWidthBeats) * getWidth();
+
+            const bool isBarLine = (fmod(beat, 4.0) < 0.001);
+            const bool isBeatLine = (fmod(beat, 1.0) < 0.001);
+
+            if (isBarLine)
+            {
+                g.setColour(juce::Colours::grey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else if (isBeatLine)
+            {
+                g.setColour(juce::Colours::dimgrey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else
+            {
+                g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+        }
+
         const auto& notes = audioProcessor.getLiveNotes();
 
         if (!notes.empty())

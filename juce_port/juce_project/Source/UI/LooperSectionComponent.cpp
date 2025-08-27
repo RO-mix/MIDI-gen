@@ -29,6 +29,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     quantizeButton.onClick = [this] { audioProcessor.quantizeLooper(); };
 
     addAndMakeVisible(quantizeGridCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_QUANTIZE_GRID")))
+    {
+        quantizeGridCombo.addItemList(choiceParam->choices, 1);
+    }
     quantizeGridAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_QUANTIZE_GRID", quantizeGridCombo);
 
     addAndMakeVisible(variationButton);
@@ -41,6 +45,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureButton.onClick = [this] { audioProcessor.captureFromGenerator(); };
 
     addAndMakeVisible(captureDurationCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_CAPTURE_DURATION")))
+    {
+        captureDurationCombo.addItemList(choiceParam->choices, 1);
+    }
     captureDurationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_DURATION", captureDurationCombo);
 
     addAndMakeVisible(captureOverdubToggle);
@@ -48,6 +56,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_OVERDUB", captureOverdubToggle);
 
     addAndMakeVisible(recapturePeriodCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_RECAPTURE_PERIOD")))
+    {
+        recapturePeriodCombo.addItemList(choiceParam->choices, 1);
+    }
     recapturePeriodAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_RECAPTURE_PERIOD", recapturePeriodCombo);
 
     // Row 3
@@ -56,6 +68,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordButton.onClick = [this] { audioProcessor.toggleLooperRecord(); };
 
     addAndMakeVisible(recordLengthCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_RECORD_LENGTH")))
+    {
+        recordLengthCombo.addItemList(choiceParam->choices, 1);
+    }
     recordLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_RECORD_LENGTH", recordLengthCombo);
 
     addAndMakeVisible(recordOverdubToggle);
@@ -63,6 +79,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_RECORD_OVERDUB", recordOverdubToggle);
 
     addAndMakeVisible(actionQuantizeCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_ACTION_QUANTIZE")))
+    {
+        actionQuantizeCombo.addItemList(choiceParam->choices, 1);
+    }
     actionQuantizeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_ACTION_QUANTIZE", actionQuantizeCombo);
 
     addAndMakeVisible(saveButton);

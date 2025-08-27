@@ -40,6 +40,10 @@ EuclideanGeneratorPanel::EuclideanGeneratorPanel(CreativeMidiGeneratorAudioProce
     deviationIsBipolarLabel.attachToComponent(&deviationIsBipolarToggle, true);
 
     addAndMakeVisible(rateCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("EUCLIDEAN_RATE")))
+    {
+        rateCombo.addItemList(choiceParam->choices, 1);
+    }
     rateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "EUCLIDEAN_RATE", rateCombo);
     addAndMakeVisible(rateLabel);
     rateLabel.setText("Rate", juce::dontSendNotification);

@@ -47,6 +47,10 @@ RandomGeneratorPanel::RandomGeneratorPanel(CreativeMidiGeneratorAudioProcessor& 
 
     // Rate
     addAndMakeVisible(rateCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("RANDOM_RATE")))
+    {
+        rateCombo.addItemList(choiceParam->choices, 1);
+    }
     rateAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "RANDOM_RATE", rateCombo);
     addAndMakeVisible(rateLabel);
     rateLabel.setText("Rate", juce::dontSendNotification);

@@ -141,6 +141,13 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 {
     buffer.clear();
 
+    if (sendAllNotesOff)
+    {
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
+        sendAllNotesOff = false;
+    }
+
     currentBpm_ = getCurrentBpm();
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     double beatsPerSample = 1.0 / samplesPerBeat_;
@@ -285,6 +292,7 @@ void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 {
     if (looper_)
     {
+        sendAllNotesOff = true;
         if (looper_->isPlaybackActive())
             looper_->stopPlayback();
         else
@@ -454,6 +462,7 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
+    sendAllNotesOff = true;
     auto generatorChoice = static_cast<int>(apvts.getRawParameterValue("GENERATOR_TYPE")->load());
     activeGenerator = availableGenerators[generatorChoice].get();
     updateScale();

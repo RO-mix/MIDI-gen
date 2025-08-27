@@ -14,32 +14,28 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                                    double currentBeat)
 {
     // Fetch global parameters
-    int channel = *apvts.getRawParameterValue("MIDI_CHANNEL");
-    double bpm = *apvts.getRawParameterValue("BPM");
-    float noteProbability = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY");
-    int rateChoice = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_RATE");
+    int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+    double bpm = apvts.getRawParameterValue("BPM")->load();
+    float noteProbability = apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY")->load();
+    int rateChoice = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_RATE")->load());
 
     // Fetch params for machine A
-    float stepsA_raw = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A");
-    int stepsA = static_cast<int>(stepsA_raw);
-    float pulsesA_raw = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A");
-    int pulsesA = static_cast<int>(pulsesA_raw);
-    juce::Logger::writeToLog("Type conversion debug A: stepsA_raw=" + juce::String(stepsA_raw) + ", cast=" + juce::String(stepsA) +
-                             ", pulsesA_raw=" + juce::String(pulsesA_raw) + ", cast=" + juce::String(pulsesA));
-    int noteA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A"));
-    int velocityA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A"));
-    int devA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A"));
-    bool bipolarA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_A") > 0.5f;
-    float durationBiasA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_A");
+    int stepsA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A")->load());
+    int pulsesA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A")->load());
+    int noteA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A")->load());
+    int velocityA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A")->load());
+    int devA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A")->load());
+    bool bipolarA = apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_A")->load() > 0.5f;
+    float durationBiasA = apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_A")->load();
 
     // Fetch params for machine B
-    int stepsB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B"));
-    int pulsesB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B"));
-    int noteB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B"));
-    int velocityB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B"));
-    int devB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B"));
-    bool bipolarB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_B") > 0.5f;
-    float durationBiasB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B");
+    int stepsB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B")->load());
+    int pulsesB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B")->load());
+    int noteB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B")->load());
+    int velocityB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B")->load());
+    int devB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B")->load());
+    bool bipolarB = apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_B")->load() > 0.5f;
+    float durationBiasB = apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B")->load();
 
     // Update patterns if needed
     if (stepsA != patternA_.size() || pulsesA != std::count(patternA_.begin(), patternA_.end(), true))
@@ -125,28 +121,28 @@ juce::MidiBuffer DualEuclideanGenerator::getPattern(double durationInBeats, juce
     double currentBeat = 0.0;
 
     // Fetch global parameters
-    int channel = *apvts.getRawParameterValue("MIDI_CHANNEL");
-    double bpm = *apvts.getRawParameterValue("BPM");
-    float noteProbability = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY");
-    int rateChoice = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_RATE");
+    int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+    double bpm = apvts.getRawParameterValue("BPM")->load();
+    float noteProbability = apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY")->load();
+    int rateChoice = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_RATE")->load());
 
     // Fetch params for machine A
-    int stepsA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A"));
-    int pulsesA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A"));
-    int noteA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A"));
-    int velocityA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A"));
-    int devA = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A"));
-    bool bipolarA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_A") > 0.5f;
-    float durationBiasA = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_A");
+    int stepsA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_A")->load());
+    int pulsesA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_A")->load());
+    int noteA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_A")->load());
+    int velocityA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_A")->load());
+    int devA = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_A")->load());
+    bool bipolarA = apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_A")->load() > 0.5f;
+    float durationBiasA = apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_A")->load();
 
     // Fetch params for machine B
-    int stepsB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B"));
-    int pulsesB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B"));
-    int noteB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B"));
-    int velocityB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B"));
-    int devB = static_cast<int>(*apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B"));
-    bool bipolarB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_B") > 0.5f;
-    float durationBiasB = *apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B");
+    int stepsB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_STEPS_B")->load());
+    int pulsesB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_PULSES_B")->load());
+    int noteB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_B")->load());
+    int velocityB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_VELOCITY_B")->load());
+    int devB = static_cast<int>(apvts.getRawParameterValue("DUAL_EUCLIDEAN_DEVIATION_B")->load());
+    bool bipolarB = apvts.getRawParameterValue("DUAL_EUCLIDEAN_BIPOLAR_B")->load() > 0.5f;
+    float durationBiasB = apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B")->load();
 
     updatePattern(patternA_, stepsA, pulsesA);
     updatePattern(patternB_, stepsB, pulsesB);

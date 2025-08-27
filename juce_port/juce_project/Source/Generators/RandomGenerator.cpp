@@ -37,10 +37,10 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
     int minNote = static_cast<int>(*minNoteParam);
     int maxNote = static_cast<int>(*maxNoteParam);
     int maxVelocity = static_cast<int>(*maxVelocityParam);
-    float velocityBias = *velocityBiasParam;
-    float noteProbability = *noteProbabilityParam;
-    float durationBias = *durationBiasParam;
-    int rateChoice = static_cast<int>(*rateParam);
+    float velocityBias = velocityBiasParam->load();
+    float noteProbability = noteProbabilityParam->load();
+    float durationBias = durationBiasParam->load();
+    int rateChoice = static_cast<int>(rateParam->load());
     bool addCC74 = *addCC74Param > 0.5f;
     int channel = static_cast<int>(*channelParam);
     double bpm = *bpmParam;
@@ -147,14 +147,14 @@ juce::MidiBuffer RandomGenerator::getPattern(double durationInBeats, juce::Audio
         return pattern; // Return empty buffer if params are missing
     }
 
-    int minNote = static_cast<int>(*minNoteParam);
-    int maxNote = static_cast<int>(*maxNoteParam);
-    int maxVelocity = static_cast<int>(*maxVelocityParam);
-    float velocityBias = *velocityBiasParam;
-    float noteProbability = *noteProbabilityParam;
-    float durationBias = *durationBiasParam;
-    int rateChoice = static_cast<int>(*rateParam);
-    bool addCC74 = *addCC74Param > 0.5f;
+    int minNote = static_cast<int>(minNoteParam->load());
+    int maxNote = static_cast<int>(maxNoteParam->load());
+    int maxVelocity = static_cast<int>(maxVelocityParam->load());
+    float velocityBias = velocityBiasParam->load();
+    float noteProbability = noteProbabilityParam->load();
+    float durationBias = durationBiasParam->load();
+    int rateChoice = static_cast<int>(rateParam->load());
+    bool addCC74 = addCC74Param->load() > 0.5f;
     int channel = static_cast<int>(*channelParam);
     double bpm = *bpmParam;
 

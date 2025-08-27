@@ -131,6 +131,8 @@ private:
     // Получение BPM из DAW
     double getCurrentBpm() const;
 
+    bool sendAllNotesOff = false;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CreativeMidiGeneratorAudioProcessor)
 };

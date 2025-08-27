@@ -74,7 +74,7 @@ void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
             }
 
             generatedNote = juce::jlimit(0, 127, generatedNote);
-            float durationInBeats = Duration::getProbabilisticDuration(durationBiasParam ? *durationBiasParam : 0.5f);
+            float durationInBeats = Duration::getProbabilisticDuration(durationBiasParam ? durationBiasParam->load() : 0.5f);
             int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
             int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);

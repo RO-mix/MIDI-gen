@@ -1,0 +1,16 @@
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/CoreLogic.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/CreativeMIDIGenerator.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/CreativeMIDIGenerator_All.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/CreativeMIDIGenerator_Standalone.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/CreativeMIDIGenerator_rc_lib.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/CreativeMIDIGenerator_VST3.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/juce_vst3_helper.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/HeadlessTestRunner.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/INSTALL.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/ALL_BUILD.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/CMakeFiles/ZERO_CHECK.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/CMakeFiles/INSTALL.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/CMakeFiles/ALL_BUILD.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/modules/CMakeFiles/INSTALL.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/extras/Build/CMakeFiles/INSTALL.dir
+D:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/extras/Build/juceaide/CMakeFiles/INSTALL.dir

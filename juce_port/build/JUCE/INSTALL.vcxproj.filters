@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\PROG\PYTHON\MIDI gen\juce_port\build\CMakeFiles\604c2a0bcdf1e7f0ab36c2595479db6a\INSTALL_force.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{5DA70475-4B27-39CC-84FD-A1ABF8195876}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

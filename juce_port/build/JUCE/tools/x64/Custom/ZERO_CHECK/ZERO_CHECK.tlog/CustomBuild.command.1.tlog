@@ -1,0 +1,10 @@
+^D:\PROG\PYTHON\MIDI GEN\JUCE_PORT\BUILD\JUCE\TOOLS\CMAKEFILES\491D2F11A36399D787E355C49BE67FC4\GENERATE.STAMP.RULE
+setlocal
+C:\cygwin64\bin\cmake.exe "-SD:/PROG/PYTHON/MIDI gen/JUCE" "-BD:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/tools" --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file "D:/PROG/PYTHON/MIDI gen/juce_port/build/JUCE/tools/JUCE.sln"
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

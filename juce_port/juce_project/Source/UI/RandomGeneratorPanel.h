@@ -3,6 +3,18 @@
 #include <JuceHeader.h>
 #include "../PluginProcessor.h"
 
+class CheckboxLookAndFeel : public juce::LookAndFeel_V4
+{
+public:
+    void drawToggleButton (juce::Graphics& g, juce::ToggleButton& button,
+                           bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+    {
+        juce::Rectangle<float> tickBounds (button.getLocalBounds().toFloat());
+        drawTickBox (g, button, tickBounds.getX(), tickBounds.getY(), tickBounds.getWidth(), tickBounds.getHeight(),
+                     button.getToggleState(), button.isEnabled(), shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+    }
+};
+
 class RandomGeneratorPanel : public juce::Component
 {
 public:
@@ -41,6 +53,8 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> durationBiasAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rateAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> addCC74Attachment;
+
+    CheckboxLookAndFeel checkboxLookAndFeel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RandomGeneratorPanel)
 };

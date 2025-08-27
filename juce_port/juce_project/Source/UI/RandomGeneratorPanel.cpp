@@ -59,6 +59,7 @@ RandomGeneratorPanel::RandomGeneratorPanel(CreativeMidiGeneratorAudioProcessor& 
     // Add CC74
     addAndMakeVisible(addCC74Toggle);
     addCC74Toggle.setClickingTogglesState(true);
+    addCC74Toggle.setLookAndFeel(&checkboxLookAndFeel);
     addCC74Attachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "RANDOM_ADD_CC74", addCC74Toggle);
     addAndMakeVisible(addCC74Label);
     addCC74Label.setText("Add CC74", juce::dontSendNotification);

@@ -90,8 +90,8 @@ void EuclideanGeneratorPanel::resized()
     createRow(noteSlider);
     createRow(velocitySlider);
     createRow(deviationRangeSlider);
+    createRow(durationBiasSlider);
     createRow(deviationIsBipolarToggle);
     createRow(rateCombo);
-    createRow(durationBiasSlider);
     createRow(noteProbabilitySlider);
 }

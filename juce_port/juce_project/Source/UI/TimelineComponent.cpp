@@ -73,12 +73,46 @@ void TimelineComponent::paint(juce::Graphics& g)
         if (loopDuration <= 0) loopDuration = 4.0; // Default if no loop
 
         // Draw Grid
-        const int numBars = static_cast<int>(std::ceil(loopDuration / 4.0));
-        const float barWidth = getWidth() / (float)loopDuration * 4.0f;
-        g.setColour(juce::Colours::dimgrey);
-        for (int i = 1; i < numBars; ++i)
+        auto* gridParam = audioProcessor.apvts.getRawParameterValue("LOOPER_QUANTIZE_GRID");
+        int gridChoice = gridParam ? static_cast<int>(gridParam->load()) : 0;
+        double gridResolution = 0.0;
+        switch (gridChoice) {
+            // "Off", "1/4", "1/8", "1/16", "1/32", "1/64"
+            case 1: gridResolution = 1.0; break;
+            case 2: gridResolution = 0.5; break;
+            case 3: gridResolution = 0.25; break;
+            case 4: gridResolution = 0.125; break;
+            case 5: gridResolution = 0.0625; break;
+            default: break; // Case 0 is "Off"
+        }
+        double visualGridResolution = (gridResolution > 0) ? gridResolution : 0.5; // Use 8th notes if off
+
+        const int numGridLines = static_cast<int>(loopDuration / visualGridResolution);
+        for (int i = 1; i <= numGridLines; ++i)
         {
-            g.drawVerticalLine(i * barWidth, 0.0f, getHeight());
+            const double beat = i * visualGridResolution;
+            if (beat >= loopDuration) continue;
+
+            const float x = (float)(beat / loopDuration) * getWidth();
+
+            const bool isBarLine = (fmod(beat, 4.0) < 0.001);
+            const bool isBeatLine = (fmod(beat, 1.0) < 0.001);
+
+            if (isBarLine)
+            {
+                g.setColour(juce::Colours::grey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else if (isBeatLine)
+            {
+                g.setColour(juce::Colours::dimgrey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else
+            {
+                g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
         }
 
         // Draw Notes

@@ -15,8 +15,17 @@ RandomGeneratorV2Panel::RandomGeneratorV2Panel(CreativeMidiGeneratorAudioProcess
     addAndMakeVisible(noteProbabilitySlider);
     noteProbabilityAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "RANDOM_V2_NOTE_PROB", noteProbabilitySlider);
     addAndMakeVisible(baseDurationCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("RANDOM_V2_BASE_DURATION")))
+    {
+        baseDurationCombo.addItemList(choiceParam->choices, 1);
+    }
     baseDurationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "RANDOM_V2_BASE_DURATION", baseDurationCombo);
+
     addAndMakeVisible(accelerationCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("RANDOM_V2_ACCELERATION")))
+    {
+        accelerationCombo.addItemList(choiceParam->choices, 1);
+    }
     accelerationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "RANDOM_V2_ACCELERATION", accelerationCombo);
 
     // Burst Pattern

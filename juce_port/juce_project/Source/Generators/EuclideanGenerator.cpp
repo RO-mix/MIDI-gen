@@ -170,7 +170,7 @@ juce::MidiBuffer EuclideanGenerator::getPattern(double durationInBeats, juce::Au
             }
 
             generatedNote = juce::jlimit(0, 127, generatedNote);
-            float duration = Duration::getProbabilisticDuration(durationBiasParam ? *durationBiasParam : 0.5f);
+            float duration = Duration::getProbabilisticDuration(durationBiasParam ? durationBiasParam->load() : 0.5f);
             int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
             int durationInSamples = static_cast<int>(duration * (60.0 / bpm) * sampleRate);
 

@@ -90,7 +90,9 @@ void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProce
     int samplePos = static_cast<int>(beat * (60.0 / bpm) * sampleRate);
 
     midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber, samplePos + durationInSamples));
+    // Be explicit to avoid ambiguous call errors on MSVC
+    auto noteOffMessage = juce::MidiMessage::noteOff(channel, noteNumber);
+    midiMessages.addEvent(noteOffMessage, samplePos + durationInSamples);
 }
 
 void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNotes)

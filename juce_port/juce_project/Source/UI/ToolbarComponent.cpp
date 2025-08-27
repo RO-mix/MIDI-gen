@@ -19,7 +19,6 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
 
     addAndMakeVisible(bpmLabel);
     bpmLabel.setText("BPM", juce::dontSendNotification);
-    bpmLabel.attachToComponent(&bpmSlider, true);
 
     addAndMakeVisible(midiChannelSlider);
     midiChannelSlider.setSliderStyle(juce::Slider::IncDecButtons);
@@ -28,23 +27,28 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
 
     addAndMakeVisible(midiChannelLabel);
     midiChannelLabel.setText("MIDI CH", juce::dontSendNotification);
-    midiChannelLabel.attachToComponent(&midiChannelSlider, true);
 
 
     // === Row 2: Musical Context ===
     addAndMakeVisible(rootNoteCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("ROOT_NOTE")))
+    {
+        rootNoteCombo.addItemList(choiceParam->choices, 1);
+    }
     rootNoteAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "ROOT_NOTE", rootNoteCombo);
 
     addAndMakeVisible(rootNoteLabel);
     rootNoteLabel.setText("Root Note", juce::dontSendNotification);
-    rootNoteLabel.attachToComponent(&rootNoteCombo, true);
 
     addAndMakeVisible(scaleCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("SCALE")))
+    {
+        scaleCombo.addItemList(choiceParam->choices, 1);
+    }
     scaleAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "SCALE", scaleCombo);
 
     addAndMakeVisible(scaleLabel);
     scaleLabel.setText("Scale", juce::dontSendNotification);
-    scaleLabel.attachToComponent(&scaleCombo, true);
 
     // Preset Controls
     presetDirectory = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
@@ -77,25 +81,37 @@ void ToolbarComponent::paint(juce::Graphics& g)
 void ToolbarComponent::resized()
 {
     auto bounds = getLocalBounds().reduced(10);
+    auto row = bounds.removeFromTop(40);
+    int x = 0;
+    int spacing = 10;
+    int labelWidth = 60;
+    int componentWidth = 100;
 
-    auto row1 = bounds.removeFromTop(40);
-    auto row2 = bounds.removeFromTop(40);
+    // --- Row 1: Playback and MIDI ---
+    startButton.setBounds(row.removeFromLeft(80));
+    row.removeFromLeft(spacing);
 
-    // Layout Row 1
-    startButton.setBounds(row1.removeFromLeft(80));
-    row1.removeFromLeft(10);
-    bpmSlider.setBounds(row1.removeFromLeft(150));
-    row1.removeFromLeft(10);
-    midiChannelSlider.setBounds(row1.removeFromLeft(120));
+    bpmLabel.setBounds(row.removeFromLeft(labelWidth));
+    bpmSlider.setBounds(row.removeFromLeft(componentWidth + 50)); // Wider for text box
+    row.removeFromLeft(spacing);
 
-    // Layout Row 2
-    rootNoteCombo.setBounds(row2.removeFromLeft(80));
-    row2.removeFromLeft(10);
-    scaleCombo.setBounds(row2.removeFromLeft(150));
-    row2.removeFromLeft(10);
-    presetCombo.setBounds(row2.removeFromLeft(150));
-    row2.removeFromLeft(10);
-    savePresetButton.setBounds(row2.removeFromLeft(100));
+    midiChannelLabel.setBounds(row.removeFromLeft(labelWidth));
+    midiChannelSlider.setBounds(row.removeFromLeft(componentWidth));
+
+    // --- Row 2: Musical Context & Presets ---
+    row = bounds.removeFromTop(40);
+
+    rootNoteLabel.setBounds(row.removeFromLeft(labelWidth));
+    rootNoteCombo.setBounds(row.removeFromLeft(componentWidth - 20));
+    row.removeFromLeft(spacing);
+
+    scaleLabel.setBounds(row.removeFromLeft(labelWidth));
+    scaleCombo.setBounds(row.removeFromLeft(componentWidth + 20));
+    row.removeFromLeft(spacing);
+
+    presetCombo.setBounds(row.removeFromLeft(componentWidth + 20));
+    row.removeFromLeft(spacing);
+    savePresetButton.setBounds(row.removeFromLeft(componentWidth));
 }
 
 void ToolbarComponent::scanForPresets()

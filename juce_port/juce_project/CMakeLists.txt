@@ -9,8 +9,9 @@ add_subdirectory(../../JUCE JUCE)
 # Force legacy parameter IDs to resolve VST2/VST3 automation conflict
 add_compile_definitions(JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
 
-# --- Core Logic Source Files ---
+# --- Source File Groups ---
 set(CORE_SOURCE_FILES
+    Source/PluginProcessor.cpp
     Source/Generators/RandomGenerator.cpp
     Source/Generators/EuclideanGenerator.cpp
     Source/Generators/DualEuclideanGenerator.cpp
@@ -20,8 +21,8 @@ set(CORE_SOURCE_FILES
     Source/Looper/Looper.cpp
 )
 
-# --- UI Component Source Files ---
 set(UI_SOURCE_FILES
+    Source/PluginEditor.cpp
     Source/UI/ToolbarComponent.cpp
     Source/UI/GeneratorSectionComponent.cpp
     Source/UI/LooperSectionComponent.cpp
@@ -32,15 +33,33 @@ set(UI_SOURCE_FILES
     Source/UI/TimelineComponent.cpp
 )
 
-# --- Plugin Target ---
-set(PLUGIN_SOURCE_FILES
-    Source/PluginProcessor.cpp
-    Source/PluginEditor.cpp
-    ${CORE_SOURCE_FILES}
-    ${UI_SOURCE_FILES}
+set(TEST_RUNNER_SOURCE_FILES
+    Source/Tests/HeadlessTestRunner.cpp
+    Source/Tests/HeadlessTester.cpp
 )
 
-# Add the plugin target
+# --- Core Logic Library (Static) ---
+add_library(CoreLogic STATIC ${CORE_SOURCE_FILES})
+
+target_include_directories(CoreLogic PUBLIC
+    Source
+    JuceLibraryCode
+)
+
+target_link_libraries(CoreLogic PUBLIC
+    juce::juce_audio_processors
+    juce::juce_events
+    juce::juce_data_structures
+    juce::juce_core
+    juce::juce_audio_basics
+)
+
+target_compile_definitions(CoreLogic PRIVATE
+    JUCE_GUI_BASICS_INCLUDE_X11=0
+    JUCE_WEB_BROWSER=0
+)
+
+# --- Plugin Target ---
 juce_add_plugin(CreativeMIDIGenerator
     COMPANY_NAME "CreativeMIDI"
     IS_MIDI_EFFECT TRUE
@@ -51,63 +70,27 @@ juce_add_plugin(CreativeMIDIGenerator
     FORMATS VST3 Standalone
 )
 
-target_sources(CreativeMIDIGenerator PRIVATE ${PLUGIN_SOURCE_FILES})
+target_sources(CreativeMIDIGenerator PRIVATE ${UI_SOURCE_FILES})
 
-# Add include directories for the plugin
-target_include_directories(CreativeMIDIGenerator PRIVATE
-    Source
-    Source/Generators
-    Source/Theory
-    Source/Looper
-    Source/UI
-    Source/Sequencer
-    JuceLibraryCode
-)
+target_include_directories(CreativeMIDIGenerator PRIVATE Source)
 
-# juce_set_post_build_step(CreativeMIDIGenerator)
-
-# Link the plugin to required JUCE modules
 target_link_libraries(CreativeMIDIGenerator PRIVATE
+    CoreLogic
     juce::juce_audio_utils
     juce::juce_audio_devices
-    juce::juce_audio_processors
-    juce::juce_audio_basics
     juce::juce_gui_basics
     juce::juce_gui_extra
-    juce::juce_graphics
-    juce::juce_events
-    juce::juce_data_structures
-    juce::juce_core
 )
 
 # --- Headless Test Runner ---
-# Source files for the test runner
-set(TEST_RUNNER_SOURCE_FILES
-    Source/Tests/HeadlessTestRunner.cpp
-    Source/Tests/HeadlessTester.cpp
-    ${CORE_SOURCE_FILES}
-)
-
-# Add the executable for the test runner
 add_executable(HeadlessTestRunner ${TEST_RUNNER_SOURCE_FILES})
 
-# Link the test runner to required JUCE modules
+target_include_directories(HeadlessTestRunner PRIVATE Source)
+
 target_link_libraries(HeadlessTestRunner PRIVATE
-    juce::juce_core
-    juce::juce_events
-    juce::juce_audio_basics
+    CoreLogic
 )
 
-# Add include directories for the test runner
-target_include_directories(HeadlessTestRunner PRIVATE
-    Source
-    Source/Generators
-    Source/Theory
-    Source/Tests
-    JuceLibraryCode
-)
-
-# Set preprocessor definitions for the test runner
 target_compile_definitions(HeadlessTestRunner PRIVATE
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0

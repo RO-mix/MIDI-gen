@@ -17,11 +17,13 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
     : apvts(*this, nullptr, "Parameters", createParameterLayout())
 #endif
 {
+#if JUCE_WINDOWS
     // Debug log for toolchain warning
     juce::Logger::writeToLog("Toolchain debug: Platform=" + juce::String(JUCE_WINDOWS ? "Windows" : "Other") +
                              ", 64-bit=" + juce::String(JUCE_64BIT ? "Yes" : "No") +
                              ", Pointer size=" + juce::String(sizeof(void*)) +
                              ", MSVC Version=" + juce::String(_MSC_VER));
+#endif
     availableGenerators[0] = std::make_unique<RandomGenerator>();
     availableGenerators[1] = std::make_unique<EuclideanGenerator>();
     availableGenerators[2] = std::make_unique<DualEuclideanGenerator>();

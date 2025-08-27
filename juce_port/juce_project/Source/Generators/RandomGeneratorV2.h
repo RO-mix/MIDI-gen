@@ -24,4 +24,6 @@ private:
     double lastBeat_ = -1.0;
     double nextEventBeat_ = 0.0;
     std::mt19937 randomEngine_;
+    std::vector<int> scaleNotes_;
+    int rootNote_ = 0;
 };

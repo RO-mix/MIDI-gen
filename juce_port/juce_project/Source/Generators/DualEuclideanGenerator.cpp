@@ -59,7 +59,7 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                 masterStepA_ = (masterStepA_ + 1) % patternA_.size();
                 if (patternA_[masterStepA_])
                 {
-                    int finalNoteA = getDeviatedNote(noteA, devA, bipolarA, lastDeviationA_);
+                    int finalNoteA = getDeviatedNote(noteA, devA, bipolarA);
                     float durationInBeats = Duration::getProbabilisticDuration(durationBiasA);
                     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
                     int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
@@ -75,7 +75,7 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                 masterStepB_ = (masterStepB_ + 1) % patternB_.size();
                 if (patternB_[masterStepB_])
                 {
-                    int finalNoteB = getDeviatedNote(noteB, devB, bipolarB, lastDeviationB_);
+                    int finalNoteB = getDeviatedNote(noteB, devB, bipolarB);
                     float durationInBeats = Duration::getProbabilisticDuration(durationBiasB);
                     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
                     int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
@@ -161,7 +161,7 @@ juce::MidiBuffer DualEuclideanGenerator::getPattern(double durationInBeats, juce
         {
             if (!patternA_.empty() && patternA_[stepCounterA % stepsA])
             {
-                int finalNoteA = getDeviatedNote(noteA, devA, bipolarA, lastDeviationA_);
+                int finalNoteA = getDeviatedNote(noteA, devA, bipolarA);
                 float durationInBeatsA = Duration::getProbabilisticDuration(durationBiasA);
                 int durationInSamplesA = static_cast<int>(durationInBeatsA * (60.0 / bpm) * sampleRate);
                 int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
@@ -171,7 +171,7 @@ juce::MidiBuffer DualEuclideanGenerator::getPattern(double durationInBeats, juce
 
             if (!patternB_.empty() && patternB_[stepCounterB % stepsB])
             {
-                int finalNoteB = getDeviatedNote(noteB, devB, bipolarB, lastDeviationB_);
+                int finalNoteB = getDeviatedNote(noteB, devB, bipolarB);
                 float durationInBeatsB = Duration::getProbabilisticDuration(durationBiasB);
                 int durationInSamplesB = static_cast<int>(durationInBeatsB * (60.0 / bpm) * sampleRate);
                 int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
@@ -187,29 +187,55 @@ juce::MidiBuffer DualEuclideanGenerator::getPattern(double durationInBeats, juce
     return patternBuffer;
 }
 
-int DualEuclideanGenerator::getDeviatedNote(int baseNote, int deviationRange, bool isBipolar, int& lastDeviation)
+int DualEuclideanGenerator::getDeviatedNote(int baseNote, int deviationRange, bool isBipolar)
 {
     if (deviationRange > 0 && !scaleNotes_.empty())
     {
-        int step = (random_.nextInt(3) - 1);
-        lastDeviation += step;
-
-        if (isBipolar)
-            lastDeviation = juce::jlimit(-deviationRange, deviationRange, lastDeviation);
-        else
-            lastDeviation = juce::jlimit(0, deviationRange, lastDeviation);
-
-        auto it = std::find_if(scaleNotes_.begin(), scaleNotes_.end(), [&](int scaleNote){ return (baseNote % 12) == (rootNote_ + scaleNote) % 12; });
-        if(it != scaleNotes_.end())
+        std::vector<int> possibleNotes;
+        for (int i = 0; i < 128; ++i)
         {
-            int baseIndex = std::distance(scaleNotes_.begin(), it);
-            int newIndex = baseIndex + lastDeviation;
+            bool isInScale = false;
+            for (int scaleNote : scaleNotes_)
+            {
+                if (i % 12 == (rootNote_ + scaleNote) % 12)
+                {
+                    isInScale = true;
+                    break;
+                }
+            }
+            if (isInScale)
+            {
+                possibleNotes.push_back(i);
+            }
+        }
 
-            while(newIndex < 0) newIndex += scaleNotes_.size();
-            newIndex %= scaleNotes_.size();
+        if (!possibleNotes.empty())
+        {
+            int minNote, maxNote;
+            if (isBipolar)
+            {
+                minNote = baseNote - deviationRange;
+                maxNote = baseNote + deviationRange;
+            }
+            else
+            {
+                minNote = baseNote;
+                maxNote = baseNote + deviationRange;
+            }
 
-            int octave = baseNote / 12;
-            return juce::jlimit(0, 127, (octave * 12) + rootNote_ + scaleNotes_[newIndex]);
+            std::vector<int> notesInRange;
+            for (int p_note : possibleNotes)
+            {
+                if (p_note >= minNote && p_note <= maxNote)
+                {
+                    notesInRange.push_back(p_note);
+                }
+            }
+
+            if (!notesInRange.empty())
+            {
+                return notesInRange[random_.nextInt(notesInRange.size())];
+            }
         }
     }
     return baseNote;

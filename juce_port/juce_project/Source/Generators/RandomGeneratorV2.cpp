@@ -74,30 +74,92 @@ void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProce
     auto* channelParam = apvts.getRawParameterValue("MIDI_CHANNEL");
     auto* bpmParam = apvts.getRawParameterValue("BPM");
 
-    if (!minNoteParam || !maxNoteParam || !channelParam || !bpmParam) return;
+    if (!minNoteParam || !maxNoteParam || !channelParam || !bpmParam || scaleNotes_.empty()) return;
 
     int minNote = static_cast<int>(minNoteParam->load());
     int maxNote = static_cast<int>(maxNoteParam->load());
     int channel = static_cast<int>(channelParam->load());
     double bpm = bpmParam->load();
 
-    int noteNumber = static_cast<int>(randomEngine_() % (maxNote - minNote + 1)) + minNote;
-    int velocity = static_cast<int>(randomEngine_() % 60) + 40; // 40-99
+    // 1. Get all scale notes within the min/max range
+    std::vector<int> notesInRange;
+    for (int octave = 0; octave < 10; ++octave)
+    {
+        for (int scaleDegree : scaleNotes_)
+        {
+            int note = rootNote_ + (octave * 12) + scaleDegree;
+            if (note >= minNote && note <= maxNote)
+            {
+                notesInRange.push_back(note);
+            }
+        }
+    }
 
+    if (notesInRange.empty()) return;
+
+    int noteNumber;
+
+    // 2. Bass note filtering logic
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    if (dist(randomEngine_) < 0.5f)
+    {
+        // 50% chance to play a bass note (root or fifth)
+        std::vector<int> bassNotes;
+        int root = rootNote_ % 12;
+        int fifth = (root + 7) % 12;
+
+        for (int note : notesInRange)
+        {
+            if (note % 12 == root || note % 12 == fifth)
+            {
+                bassNotes.push_back(note);
+            }
+        }
+
+        if (!bassNotes.empty())
+        {
+            // Find the lowest octave for bass notes
+            int lowestOctave = 10;
+            for (int note : bassNotes) {
+                lowestOctave = std::min(lowestOctave, note / 12);
+            }
+            std::vector<int> lowestBassNotes;
+            for (int note : bassNotes) {
+                if (note / 12 == lowestOctave) {
+                    lowestBassNotes.push_back(note);
+                }
+            }
+            if(!lowestBassNotes.empty())
+                noteNumber = lowestBassNotes[randomEngine_() % lowestBassNotes.size()];
+            else
+                noteNumber = notesInRange[randomEngine_() % notesInRange.size()];
+        }
+        else
+        {
+            // No bass notes in range, so just pick a random note
+            noteNumber = notesInRange[randomEngine_() % notesInRange.size()];
+        }
+    }
+    else
+    {
+        // 50% chance to play any note from the scale
+        noteNumber = notesInRange[randomEngine_() % notesInRange.size()];
+    }
+
+    int velocity = static_cast<int>(randomEngine_() % 60) + 40; // 40-99
     double durationInBeats = 1.0; // Fixed duration for now
     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
-
     int samplePos = static_cast<int>(beat * (60.0 / bpm) * sampleRate);
 
     midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-    // Be explicit to avoid ambiguous call errors on MSVC
     auto noteOffMessage = juce::MidiMessage::noteOff(channel, noteNumber);
     midiMessages.addEvent(noteOffMessage, samplePos + durationInSamples);
 }
 
 void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNotes)
 {
-    juce::ignoreUnused(rootNote, scaleNotes);
+    rootNote_ = rootNote;
+    scaleNotes_ = scaleNotes;
 }
 
 juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)

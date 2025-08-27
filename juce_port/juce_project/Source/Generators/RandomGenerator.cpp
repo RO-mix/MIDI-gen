@@ -113,15 +113,33 @@ void RandomGenerator::setScale(int rootNote, const std::vector<int>& scaleNotes)
 
 int RandomGenerator::calculateVelocity(float bias, int maxVelocity)
 {
-    // A more musical velocity curve. Bias towards the extremes is less linear.
-    float r = distribution_(randomEngine_);
-    float skewed_r = juce::jmap(r, 0.0f, 1.0f, 1.0f - bias, bias);
-    float curved_r = std::pow(skewed_r, 2.0f); // Exponential curve
+    float alpha, beta;
+    float inverted_bias = 1.0f - bias;
+    if (inverted_bias < 0.5f)
+    {
+        alpha = 1.0f + (0.5f - inverted_bias) * 8.0f;
+        beta = 1.0f;
+    }
+    else
+    {
+        alpha = 1.0f;
+        beta = 1.0f + (inverted_bias - 0.5f) * 8.0f;
+    }
 
-    // Add some slight random variation
-    float variation = 1.0f + (distribution_(randomEngine_) - 0.5f) * 0.2f; // +/- 10%
+    std::gamma_distribution<float> dist1(alpha, 1.0f);
+    std::gamma_distribution<float> dist2(beta, 1.0f);
 
-    return juce::jlimit(1, maxVelocity, static_cast<int>(curved_r * maxVelocity * variation));
+    float g1 = dist1(randomEngine_);
+    float g2 = dist2(randomEngine_);
+
+    // Avoid division by zero if both are somehow zero
+    if (g1 + g2 == 0.0f) return 1;
+
+    float random_val = g1 / (g1 + g2);
+
+    int random_velocity = 1 + static_cast<int>(random_val * (maxVelocity - 1));
+
+    return juce::jlimit(1, maxVelocity, random_velocity);
 }
 
 juce::MidiBuffer RandomGenerator::getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate)

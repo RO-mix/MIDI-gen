@@ -48,28 +48,51 @@ void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
             int generatedNote = note;
             if (deviationRange > 0 && !scaleNotes_.empty())
             {
-                // Melodic "walking" deviation
-                int step = (random_.nextInt(3) - 1); // -1, 0, or 1
-                lastDeviation_ += step;
-
-                // Clamp within the bipolar range if active, or unipolar if not
-                if (isBipolar)
-                    lastDeviation_ = juce::jlimit(-deviationRange, deviationRange, lastDeviation_);
-                else
-                    lastDeviation_ = juce::jlimit(0, deviationRange, lastDeviation_);
-
-                auto it = std::find_if(scaleNotes_.begin(), scaleNotes_.end(), [&](int scaleNote){ return (note % 12) == (rootNote_ + scaleNote) % 12; });
-                if(it != scaleNotes_.end())
+                std::vector<int> possibleNotes;
+                for (int i = 0; i < 128; ++i)
                 {
-                    int baseIndex = std::distance(scaleNotes_.begin(), it);
-                    int newIndex = baseIndex + lastDeviation_;
+                    bool isInScale = false;
+                    for (int scaleNote : scaleNotes_)
+                    {
+                        if (i % 12 == (rootNote_ + scaleNote) % 12)
+                        {
+                            isInScale = true;
+                            break;
+                        }
+                    }
+                    if (isInScale)
+                    {
+                        possibleNotes.push_back(i);
+                    }
+                }
 
-                    // Wrap index within scale size
-                    while(newIndex < 0) newIndex += scaleNotes_.size();
-                    newIndex %= scaleNotes_.size();
+                if (!possibleNotes.empty())
+                {
+                    int minNote, maxNote;
+                    if (isBipolar)
+                    {
+                        minNote = note - deviationRange;
+                        maxNote = note + deviationRange;
+                    }
+                    else
+                    {
+                        minNote = note;
+                        maxNote = note + deviationRange;
+                    }
 
-                    int octave = note / 12;
-                    generatedNote = (octave * 12) + rootNote_ + scaleNotes_[newIndex];
+                    std::vector<int> notesInRange;
+                    for (int p_note : possibleNotes)
+                    {
+                        if (p_note >= minNote && p_note <= maxNote)
+                        {
+                            notesInRange.push_back(p_note);
+                        }
+                    }
+
+                    if (!notesInRange.empty())
+                    {
+                        generatedNote = notesInRange[random_.nextInt(notesInRange.size())];
+                    }
                 }
             }
 

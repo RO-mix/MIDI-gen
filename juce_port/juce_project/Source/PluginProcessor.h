@@ -161,6 +161,7 @@ private:
     double lastBeat_ = 0.0;
     enum class LooperAction { None, TogglePlay, ToggleRecord, Capture, Double, Split, Clear };
     void executePendingLooperAction();
+    void scheduleLooperAction(LooperAction action);
 
     juce::ListenerList<Listener> listeners_;
     LooperAction pendingLooperAction = LooperAction::None;

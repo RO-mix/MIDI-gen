@@ -116,7 +116,7 @@ void LooperSectionComponent::playbackStateChanged(bool isPlaying)
 void LooperSectionComponent::looperStateChanged(bool isPlaying)
 {
     playButton.setButtonText(isPlaying ? "Stop" : "Play");
-    juce::Logger::writeToLog("UI: LooperSectionComponent received looper state change. isPlaying: " + juce::String(isPlaying));
+    juce::Logger::writeToLog("UI: LooperSectionComponent received looper state change. isPlaying: " + juce::String(isPlaying ? "true" : "false"));
 }
 
 void LooperSectionComponent::paint(juce::Graphics& g)

@@ -22,6 +22,8 @@ void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 {
     if (!isRecording) return;
 
+    // juce::Logger::writeToLog("Looper::recordNote: Received " + message.getDescription() + " at beat " + juce::String(beatTime));
+
     if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
     {
         stopRecording();
@@ -304,6 +306,8 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
         const auto message = metadata.getMessage();
         const double beatTime = metadata.samplePosition * beatsPerSample;
 
+        juce::Logger::writeToLog("Looper::load: Processing event at beat " + juce::String(beatTime));
+
         if (message.isNoteOn())
         {
             noteOnEvents[message.getNoteNumber()] = { beatTime, message.getVelocity() };
@@ -323,6 +327,10 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
                 // Ensure duration is not negative or zero
                 if (newNote.durationInBeats <= 0)
                     newNote.durationInBeats = 0.125; // Default to a 32nd note
+
+                juce::Logger::writeToLog("Looper::load: Stored note " + juce::String(newNote.message.getNoteNumber()) +
+                                         " | Start: " + juce::String(newNote.beatTime) +
+                                         " | Duration: " + juce::String(newNote.durationInBeats));
 
                 recordedNotes.push_back(newNote);
                 noteOnEvents.erase(it);

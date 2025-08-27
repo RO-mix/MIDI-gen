@@ -29,6 +29,12 @@ namespace Duration
         static std::mt19937 gen(std::random_device{}());
         std::discrete_distribution<> dist(final_weights.begin(), final_weights.end());
 
-        return DURATION_VALUES[dist(gen)];
+        int chosen_index = dist(gen);
+        float chosen_duration = DURATION_VALUES[chosen_index];
+
+        juce::String logMessage = "Duration Bias: " + juce::String(bias) + " -> Chosen Duration: " + juce::String(chosen_duration);
+        juce::Logger::writeToLog(logMessage);
+
+        return chosen_duration;
     }
 }

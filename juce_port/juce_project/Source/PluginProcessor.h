@@ -164,4 +164,7 @@ private:
 
     juce::ListenerList<Listener> listeners_;
     LooperAction pendingLooperAction = LooperAction::None;
+
+    bool isGeneratorSwitchPending_ = false;
+    int pendingGeneratorChoice_ = 0;
 };

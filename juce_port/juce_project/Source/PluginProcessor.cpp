@@ -209,7 +209,22 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     {
         bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
         juce::MidiBuffer looperBuffer = looper_->getPlaybackBuffer(buffer.getNumSamples(), currentBeat_, currentBeat_ + (beatsPerSample * buffer.getNumSamples()), isPadMode);
+        if (looperBuffer.getNumEvents() > 0)
+        {
+            juce::Logger::writeToLog("PROCESS: Looper generated " + juce::String(looperBuffer.getNumEvents()) + " events this block.");
+        }
         midiMessages.addEvents(looperBuffer, 0, -1, 0);
+    }
+
+    // --- Handle Generator Switching ---
+    if (isGeneratorSwitchPending_)
+    {
+        double nextQuarterNote = std::ceil(currentBeat_ * 4.0) / 4.0;
+        if (currentBeat_ >= nextQuarterNote && lastBeat_ < nextQuarterNote)
+        {
+            updateActiveGenerator();
+            isGeneratorSwitchPending_ = false;
+        }
     }
 
     // --- Handle Action Quantization ---
@@ -330,6 +345,7 @@ void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 {
+    juce::Logger::writeToLog("UI: Looper Play/Stop button clicked.");
     pendingLooperAction = LooperAction::TogglePlay;
 }
 
@@ -341,6 +357,7 @@ void CreativeMidiGeneratorAudioProcessor::clearLooper()
 
 void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
 {
+    juce::Logger::writeToLog("UI: Capture button clicked.");
     pendingLooperAction = LooperAction::Capture;
 }
 
@@ -462,7 +479,8 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 {
     if (parameterID == "GENERATOR_TYPE")
     {
-        updateActiveGenerator();
+        pendingGeneratorChoice_ = static_cast<int>(newValue);
+        isGeneratorSwitchPending_ = true;
     }
     else if (parameterID == "ROOT_NOTE" || parameterID == "SCALE")
     {
@@ -484,8 +502,7 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
     sendAllNotesOff = true;
-    auto generatorChoice = static_cast<int>(apvts.getRawParameterValue("GENERATOR_TYPE")->load());
-    activeGenerator = availableGenerators[generatorChoice].get();
+    activeGenerator = availableGenerators[pendingGeneratorChoice_].get();
     updateScale();
 }
 
@@ -510,18 +527,27 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
     {
         case LooperAction::TogglePlay:
         {
+            juce::Logger::writeToLog("ACTION: Executing TogglePlay.");
             sendAllNotesOff = true;
             if (looper_->isPlaybackActive())
+            {
+                juce::Logger::writeToLog("ACTION: Stopping looper playback.");
                 looper_->stopPlayback();
+            }
             else
+            {
+                juce::Logger::writeToLog("ACTION: Starting looper playback.");
                 looper_->startPlayback();
+            }
             listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
             break;
         }
         case LooperAction::ToggleRecord:
         {
+            juce::Logger::writeToLog("ACTION: Executing ToggleRecord.");
             if (looper_->isRecordingActive())
             {
+                juce::Logger::writeToLog("ACTION: Stopping record, starting playback.");
                 looper_->stopRecording();
                 looper_->startPlayback();
             }
@@ -537,12 +563,14 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                         recordLengthInBeats = lengthMap[choice];
                 }
                 bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
+                juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
                 looper_->startRecording(recordLengthInBeats, isOverdub);
             }
             break;
         }
         case LooperAction::Capture:
         {
+            juce::Logger::writeToLog("ACTION: Executing Capture.");
             if (activeGenerator && looper_)
             {
                 auto* durationParam = apvts.getRawParameterValue("LOOPER_CAPTURE_DURATION");
@@ -559,8 +587,10 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                 }
                 if (durationInBeats > 0)
                 {
+                    juce::Logger::writeToLog("ACTION: Generating pattern for " + juce::String(durationInBeats) + " beats.");
                     bool isOverdub = apvts.getRawParameterValue("LOOPER_CAPTURE_OVERDUB")->load() > 0.5f;
                     auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
+                    juce::Logger::writeToLog("ACTION: Pattern generated with " + juce::String(pattern.getNumEvents()) + " events.");
                     looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub);
                     looper_->startPlayback();
                 }

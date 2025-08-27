@@ -29,6 +29,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     quantizeButton.onClick = [this] { audioProcessor.quantizeLooper(); };
 
     addAndMakeVisible(quantizeGridCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_QUANTIZE_GRID")))
+    {
+        quantizeGridCombo.addItemList(choiceParam->choices, 1);
+    }
     quantizeGridAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_QUANTIZE_GRID", quantizeGridCombo);
 
     addAndMakeVisible(variationButton);
@@ -41,6 +45,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureButton.onClick = [this] { audioProcessor.captureFromGenerator(); };
 
     addAndMakeVisible(captureDurationCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_CAPTURE_DURATION")))
+    {
+        captureDurationCombo.addItemList(choiceParam->choices, 1);
+    }
     captureDurationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_DURATION", captureDurationCombo);
 
     addAndMakeVisible(captureOverdubToggle);
@@ -48,6 +56,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_OVERDUB", captureOverdubToggle);
 
     addAndMakeVisible(recapturePeriodCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_RECAPTURE_PERIOD")))
+    {
+        recapturePeriodCombo.addItemList(choiceParam->choices, 1);
+    }
     recapturePeriodAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_RECAPTURE_PERIOD", recapturePeriodCombo);
 
     // Row 3
@@ -56,6 +68,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordButton.onClick = [this] { audioProcessor.toggleLooperRecord(); };
 
     addAndMakeVisible(recordLengthCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_RECORD_LENGTH")))
+    {
+        recordLengthCombo.addItemList(choiceParam->choices, 1);
+    }
     recordLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_RECORD_LENGTH", recordLengthCombo);
 
     addAndMakeVisible(recordOverdubToggle);
@@ -63,6 +79,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_RECORD_OVERDUB", recordOverdubToggle);
 
     addAndMakeVisible(actionQuantizeCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_ACTION_QUANTIZE")))
+    {
+        actionQuantizeCombo.addItemList(choiceParam->choices, 1);
+    }
     actionQuantizeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_ACTION_QUANTIZE", actionQuantizeCombo);
 
     addAndMakeVisible(saveButton);
@@ -78,10 +98,25 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     highIntensityAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "LOOPER_INTENSITY_HIGH", highIntensitySlider);
 
     addAndMakeVisible(timelineComponent);
+
+    audioProcessor.addListener(this);
 }
 
 LooperSectionComponent::~LooperSectionComponent()
 {
+    audioProcessor.removeListener(this);
+}
+
+void LooperSectionComponent::playbackStateChanged(bool isPlaying)
+{
+    // The looper play button is not affected by the main generator's state.
+    juce::ignoreUnused(isPlaying);
+}
+
+void LooperSectionComponent::looperStateChanged(bool isPlaying)
+{
+    playButton.setButtonText(isPlaying ? "Stop" : "Play");
+    juce::Logger::writeToLog("UI: LooperSectionComponent received looper state change. isPlaying: " + juce::String(isPlaying ? "true" : "false"));
 }
 
 void LooperSectionComponent::paint(juce::Graphics& g)

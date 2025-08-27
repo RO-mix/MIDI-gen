@@ -9,8 +9,10 @@ CreativeMidiGeneratorAudioProcessorEditor::CreativeMidiGeneratorAudioProcessorEd
       generatorSectionComponent(p),
       looperSectionComponent(p)
 {
+    setLookAndFeel(&lookAndFeel);
+
     // Set the size for the new UI. This might be adjusted later.
-    setSize (680, 800); // Increased height for looper
+    setSize (680, 920); // Increased height for looper and generators
 
     addAndMakeVisible(toolbarComponent);
     addAndMakeVisible(generatorSectionComponent);
@@ -19,6 +21,7 @@ CreativeMidiGeneratorAudioProcessorEditor::CreativeMidiGeneratorAudioProcessorEd
 
 CreativeMidiGeneratorAudioProcessorEditor::~CreativeMidiGeneratorAudioProcessorEditor()
 {
+    setLookAndFeel(nullptr);
 }
 
 //==============================================================================
@@ -32,6 +35,6 @@ void CreativeMidiGeneratorAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds();
     toolbarComponent.setBounds(bounds.removeFromTop(100));
-    generatorSectionComponent.setBounds(bounds.removeFromTop(300));
+    generatorSectionComponent.setBounds(bounds.removeFromTop(420));
     looperSectionComponent.setBounds(bounds);
 }

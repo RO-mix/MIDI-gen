@@ -14,10 +14,14 @@ public:
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
+    juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate) override;
+    void reset() override;
+
 private:
     // Internal state
     int currentStep_ = -1;
     double lastBeat_ = -1.0;
+    int lastDeviation_ = 0;
     std::vector<bool> pattern_;
     std::vector<int> scaleNotes_;
     int rootNote_ = 0;

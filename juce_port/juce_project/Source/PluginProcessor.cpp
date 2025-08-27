@@ -6,9 +6,9 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
-                      #if ! JucePlugin_IsSynth
+                     #if ! JucePlugin_IsSynth
                        .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                      #endif
+                     #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
                        ),
@@ -17,6 +17,12 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
     : apvts(*this, nullptr, "Parameters", createParameterLayout())
 #endif
 {
+#if JUCE_WINDOWS
+    juce::Logger::writeToLog("Toolchain debug: Platform=" + juce::String(JUCE_WINDOWS ? "Windows" : "Other") +
+                             ", 64-bit=" + juce::String(JUCE_64BIT ? "Yes" : "No") +
+                             ", Pointer size=" + juce::String(sizeof(void*)) +
+                             ", MSVC Version=" + juce::String(_MSC_VER));
+#endif
     availableGenerators[0] = std::make_unique<RandomGenerator>();
     availableGenerators[1] = std::make_unique<EuclideanGenerator>();
     availableGenerators[2] = std::make_unique<DualEuclideanGenerator>();
@@ -25,6 +31,7 @@ CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
     apvts.addParameterListener("GENERATOR_TYPE", this);
     apvts.addParameterListener("ROOT_NOTE", this);
     apvts.addParameterListener("SCALE", this);
+    apvts.addParameterListener("LOOPER_RECAPTURE_PERIOD", this);
 
     updateActiveGenerator();
 
@@ -86,16 +93,16 @@ int CreativeMidiGeneratorAudioProcessor::getCurrentProgram()
     return 0;
 }
 
-void CreativeMidiGeneratorAudioProcessor::setCurrentProgram (int index)
+void CreativeMidiGeneratorAudioProcessor::setCurrentProgram ([[maybe_unused]] int index)
 {
 }
 
-const juce::String CreativeMidiGeneratorAudioProcessor::getProgramName (int index)
+const juce::String CreativeMidiGeneratorAudioProcessor::getProgramName ([[maybe_unused]] int index)
 {
     return {};
 }
 
-void CreativeMidiGeneratorAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void CreativeMidiGeneratorAudioProcessor::changeProgramName ([[maybe_unused]] int index, [[maybe_unused]] const juce::String& newName)
 {
 }
 
@@ -133,26 +140,73 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 {
     buffer.clear();
 
+    if (sendAllNotesOff)
+    {
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.clear();
+        midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
+        sendAllNotesOff = false;
+    }
+
     currentBpm_ = getCurrentBpm();
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     double beatsPerSample = 1.0 / samplesPerBeat_;
 
-    juce::MidiBuffer generatedMidi;
-    if (activeGenerator != nullptr && isPlaying_)
-    {
-        activeGenerator->process(generatedMidi, apvts, sampleRate_, currentBeat_);
-    }
-
+    double lastBlockBeat = currentBeat_;
     currentBeat_ += buffer.getNumSamples() * beatsPerSample;
 
+    if (isGeneratorSwitchPending_)
+    {
+        double nextQuarterNote = std::ceil(lastBlockBeat * 4.0) / 4.0;
+        if (currentBeat_ >= nextQuarterNote && lastBlockBeat < nextQuarterNote)
+        {
+            juce::Logger::writeToLog("SWITCHING GENERATOR at beat: " + juce::String(currentBeat_));
+            updateActiveGenerator();
+            isGeneratorSwitchPending_ = false;
+        }
+    }
+
+    if (pendingLooperAction != LooperAction::None)
+    {
+        if (currentBeat_ >= looperActionTriggerTime_ && lastBlockBeat < looperActionTriggerTime_)
+        {
+            executePendingLooperAction();
+        }
+    }
+
+    juce::MidiBuffer generatedMidi;
+    if (activeGenerator != nullptr && isPlaying_ && !looper_->isPlaybackActive())
+    {
+        activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat);
+    }
+
+    if (looper_ && looper_->isRecordingActive())
+    {
+        for (const auto metadata : midiMessages)
+        {
+            looper_->recordNote(metadata.getMessage(), lastBlockBeat + (metadata.samplePosition * beatsPerSample));
+        }
+    }
+
     midiMessages.addEvents(generatedMidi, 0, -1, 0);
+
+    if (looper_ && looper_->isPlaybackActive())
+    {
+        bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
+        juce::MidiBuffer looperBuffer = looper_->getPlaybackBuffer(buffer.getNumSamples(), lastBlockBeat, currentBeat_, isPadMode);
+        if (looperBuffer.getNumEvents() > 0)
+        {
+            juce::Logger::writeToLog("PROCESS: Looper generated " + juce::String(looperBuffer.getNumEvents()) + " events this block.");
+        }
+        midiMessages.addEvents(looperBuffer, 0, -1, 0);
+    }
 }
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
 {
-    if (auto* playHead = getPlayHead())
+    if (auto* currentPlayHead = getPlayHead())
     {
-        if (auto positionInfo = playHead->getPosition())
+        if (auto positionInfo = currentPlayHead->getPosition())
         {
             if (positionInfo->getBpm().hasValue())
             {
@@ -161,6 +215,13 @@ double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
         }
     }
     return apvts.getRawParameterValue("BPM")->load();
+}
+
+double CreativeMidiGeneratorAudioProcessor::getLooperDurationInBeats() const
+{
+    if (looper_)
+        return looper_->getDurationInBeats();
+    return 0.0;
 }
 
 //==============================================================================
@@ -194,28 +255,58 @@ void CreativeMidiGeneratorAudioProcessor::setStateInformation (const void* data,
 // Looper Methods
 //==============================================================================
 
+void CreativeMidiGeneratorAudioProcessor::scheduleLooperAction(LooperAction action)
+{
+    auto* quantizeParam = apvts.getRawParameterValue("LOOPER_ACTION_QUANTIZE");
+    int quantizeChoice = quantizeParam ? static_cast<int>(quantizeParam->load()) : 3;
+
+    if (quantizeChoice == 0)
+    {
+        pendingLooperAction = action;
+        executePendingLooperAction();
+        return;
+    }
+
+    pendingLooperAction = action;
+    double nextTriggerTime = 0.0;
+
+    double beatForCalc = currentBeat_;
+
+    switch (quantizeChoice)
+    {
+        case 1: // Next 1/2
+            nextTriggerTime = std::ceil(beatForCalc * 2.0) / 2.0;
+            break;
+        case 2: // Next Beat
+            nextTriggerTime = std::ceil(beatForCalc);
+            break;
+        case 3: // Next Bar
+            nextTriggerTime = std::ceil(beatForCalc / 4.0) * 4.0;
+            break;
+    }
+
+    if (nextTriggerTime < currentBeat_ + 0.05)
+    {
+        switch (quantizeChoice)
+        {
+            case 1: nextTriggerTime += 0.5; break;
+            case 2: nextTriggerTime += 1.0; break;
+            case 3: nextTriggerTime += 4.0; break;
+        }
+    }
+
+    looperActionTriggerTime_ = nextTriggerTime;
+    juce::Logger::writeToLog("SCHEDULING action " + juce::String((int)action) + " for beat " + juce::String(looperActionTriggerTime_));
+}
+
 void CreativeMidiGeneratorAudioProcessor::toggleLooperRecord()
 {
-    // TODO: Implement logic to toggle recording, possibly based on APVTS state
-    if (looper_)
-    {
-        if (looper_->isRecordingActive())
-            looper_->stopRecording();
-        else
-            looper_->startRecording();
-    }
+    scheduleLooperAction(LooperAction::ToggleRecord);
 }
 
 void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 {
-    // TODO: Implement logic to toggle playback
-    if (looper_)
-    {
-        if (looper_->isPlaybackActive())
-            looper_->stopPlayback();
-        else
-            looper_->startPlayback();
-    }
+    scheduleLooperAction(LooperAction::TogglePlay);
 }
 
 void CreativeMidiGeneratorAudioProcessor::clearLooper()
@@ -225,27 +316,59 @@ void CreativeMidiGeneratorAudioProcessor::clearLooper()
 
 void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
 {
-    // TODO: Implement capture logic
+    scheduleLooperAction(LooperAction::Capture);
 }
 
 void CreativeMidiGeneratorAudioProcessor::quantizeLooper()
 {
-    // TODO: Implement quantization logic
+    if (looper_)
+    {
+        auto* gridParam = apvts.getRawParameterValue("LOOPER_QUANTIZE_GRID");
+        if (!gridParam) return;
+
+        int choice = static_cast<int>(gridParam->load());
+        double gridInBeats = 0.0;
+        switch (choice) {
+            case 1: gridInBeats = 1.0; break;
+            case 2: gridInBeats = 0.5; break;
+            case 3: gridInBeats = 0.25; break;
+            case 4: gridInBeats = 0.125; break;
+            case 5: gridInBeats = 0.0625; break;
+            default: break;
+        }
+
+        if (gridInBeats > 0)
+            looper_->quantize(gridInBeats);
+        else
+            looper_->unquantize();
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::generateLooperVariation()
 {
-    // TODO: Implement variation logic
+    if (looper_)
+    {
+        float bassIntensity = apvts.getRawParameterValue("LOOPER_INTENSITY_BASS")->load();
+        float midIntensity = apvts.getRawParameterValue("LOOPER_INTENSITY_MID")->load();
+        float highIntensity = apvts.getRawParameterValue("LOOPER_INTENSITY_HIGH")->load();
+
+        int rootNote = static_cast<int>(apvts.getRawParameterValue("ROOT_NOTE")->load());
+        int scaleChoice = static_cast<int>(apvts.getRawParameterValue("SCALE")->load());
+        ScaleType scaleType = static_cast<ScaleType>(scaleChoice);
+        auto scaleNotes = Scales::getScaleNotes(rootNote, Scales::getScaleName(scaleType));
+
+        looper_->generateVariations(bassIntensity, midIntensity, highIntensity, rootNote, scaleNotes);
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::doubleLoop()
 {
-    // TODO: Implement loop doubling logic
+    scheduleLooperAction(LooperAction::Double);
 }
 
 void CreativeMidiGeneratorAudioProcessor::splitLoop()
 {
-    // TODO: Implement loop splitting logic
+    scheduleLooperAction(LooperAction::Split);
 }
 
 void CreativeMidiGeneratorAudioProcessor::setLooperMode(LooperMode mode)
@@ -301,6 +424,7 @@ double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const
 void CreativeMidiGeneratorAudioProcessor::togglePlayback()
 {
     isPlaying_ = !isPlaying_;
+    listeners_.call([&](Listener& l) { l.playbackStateChanged(isPlaying_); });
 }
 
 bool CreativeMidiGeneratorAudioProcessor::isPlaying() const
@@ -312,19 +436,34 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 {
     if (parameterID == "GENERATOR_TYPE")
     {
-        updateActiveGenerator();
+        pendingGeneratorChoice_ = static_cast<int>(newValue);
+        isGeneratorSwitchPending_ = true;
     }
     else if (parameterID == "ROOT_NOTE" || parameterID == "SCALE")
     {
         updateScale();
     }
+    else if (parameterID == "LOOPER_RECAPTURE_PERIOD")
+    {
+        int choice = static_cast<int>(newValue);
+        int periodMap[] = { 0, 2, 3, 4, 6, 8 };
+        if (choice >= 0 && static_cast<size_t>(choice) < std::size(periodMap))
+        {
+            autoRecapturePeriod_ = periodMap[choice];
+            loopCounter_ = 0;
+        }
+    }
 }
 
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
-    auto generatorChoice = static_cast<int>(apvts.getRawParameterValue("GENERATOR_TYPE")->load());
-    activeGenerator = availableGenerators[generatorChoice].get();
-    updateScale(); // Update scale for the newly selected generator
+    sendAllNotesOff = true;
+    if (activeGenerator)
+    {
+        activeGenerator->reset();
+    }
+    activeGenerator = availableGenerators[pendingGeneratorChoice_].get();
+    updateScale();
 }
 
 void CreativeMidiGeneratorAudioProcessor::updateScale()
@@ -334,11 +473,103 @@ void CreativeMidiGeneratorAudioProcessor::updateScale()
         auto rootNote = static_cast<int>(apvts.getRawParameterValue("ROOT_NOTE")->load());
         auto scaleChoice = static_cast<int>(apvts.getRawParameterValue("SCALE")->load());
 
-        // This is a simplified mapping. A more robust solution would be better.
         ScaleType scaleType = static_cast<ScaleType>(scaleChoice);
 
-        activeGenerator->setScale(rootNote, Scales::getNotesInScale(rootNote, scaleType));
+        activeGenerator->setScale(rootNote, Scales::getScaleNotes(rootNote, Scales::getScaleName(scaleType)));
     }
+}
+
+void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
+{
+    if (!looper_) return;
+
+    switch (pendingLooperAction)
+    {
+        case LooperAction::TogglePlay:
+        {
+            juce::Logger::writeToLog("ACTION: Executing TogglePlay.");
+            sendAllNotesOff = true;
+            if (looper_->isPlaybackActive())
+            {
+                juce::Logger::writeToLog("ACTION: Stopping looper playback.");
+                looper_->stopPlayback();
+            }
+            else
+            {
+                juce::Logger::writeToLog("ACTION: Starting looper playback.");
+                looper_->startPlayback();
+            }
+            listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
+            break;
+        }
+        case LooperAction::ToggleRecord:
+        {
+            juce::Logger::writeToLog("ACTION: Executing ToggleRecord.");
+            if (looper_->isRecordingActive())
+            {
+                juce::Logger::writeToLog("ACTION: Stopping record, starting playback.");
+                looper_->stopRecording();
+                looper_->startPlayback();
+            }
+            else
+            {
+                auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
+                double recordLengthInBeats = 16.0;
+                if (lengthParam)
+                {
+                    int choice = static_cast<int>(lengthParam->load());
+                    double lengthMap[] = { 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0 };
+                    if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
+                        recordLengthInBeats = lengthMap[choice];
+                }
+                bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
+                juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
+                looper_->startRecording(recordLengthInBeats, isOverdub);
+            }
+            break;
+        }
+        case LooperAction::Capture:
+        {
+            juce::Logger::writeToLog("ACTION: Executing Capture.");
+            if (activeGenerator && looper_)
+            {
+                auto* durationParam = apvts.getRawParameterValue("LOOPER_CAPTURE_DURATION");
+                if (!durationParam) break;
+                int choice = static_cast<int>(durationParam->load());
+                double durationInBeats = 0.0;
+                switch (choice) {
+                    case 0: durationInBeats = 0.5; break;
+                    case 1: durationInBeats = 1.0; break;
+                    case 2: durationInBeats = 2.0; break;
+                    case 3: durationInBeats = 4.0; break;
+                    case 4: durationInBeats = 8.0; break;
+                    case 5: durationInBeats = 16.0; break;
+                }
+                if (durationInBeats > 0)
+                {
+                    juce::Logger::writeToLog("ACTION: Generating pattern for " + juce::String(durationInBeats) + " beats.");
+                    bool isOverdub = apvts.getRawParameterValue("LOOPER_CAPTURE_OVERDUB")->load() > 0.5f;
+                    auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
+                    juce::Logger::writeToLog("ACTION: Pattern generated with " + juce::String(pattern.getNumEvents()) + " events.");
+                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub);
+                    looper_->startPlayback();
+                }
+            }
+            break;
+        }
+        case LooperAction::Double:
+            looper_->doubleLoop();
+            break;
+        case LooperAction::Split:
+            looper_->splitLoop();
+            break;
+        case LooperAction::Clear:
+            looper_->clear();
+            break;
+        case LooperAction::None:
+            break;
+    }
+    pendingLooperAction = LooperAction::None;
 }
 
 
@@ -353,7 +584,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     // === Global and Toolbar ===
     add(std::make_unique<juce::AudioParameterFloat>("BPM", "BPM", 20.0f, 300.0f, 120.0f));
     add(std::make_unique<juce::AudioParameterChoice>("ROOT_NOTE", "Root Note", juce::StringArray{"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"}, 0));
-    add(std::make_unique<juce::AudioParameterChoice>("SCALE", "Scale", juce::StringArray{"Major", "Minor", "Dorian", "Mixolydian", "Lydian", "Phrygian", "Locrian", "Minor Pentatonic", "Major Pentatonic", "Chromatic"}, 0));
+    add(std::make_unique<juce::AudioParameterChoice>("SCALE", "Scale", Scales::getAvailableScaleNames(), 0));
     add(std::make_unique<juce::AudioParameterInt>("MIDI_CHANNEL", "MIDI Channel", 1, 16, 1));
     add(std::make_unique<juce::AudioParameterChoice>("GENERATOR_TYPE", "Generator Type", juce::StringArray{"Random", "Euclidean", "Dual Euclidean", "Random v2.2"}, 0));
 
@@ -401,7 +632,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     add(std::make_unique<juce::AudioParameterInt>("RANDOM_V2_MAX_NOTE", "Random v2 Max Note", 0, 127, 72));
     add(std::make_unique<juce::AudioParameterFloat>("RANDOM_V2_BURST_PROB", "Random v2 Burst Probability", 0.0f, 1.0f, 0.5f));
     add(std::make_unique<juce::AudioParameterFloat>("RANDOM_V2_NOTE_PROB", "Random v2 Note Probability", 0.0f, 1.0f, 1.0f));
-    add(std::make_unique<juce::AudioParameterChoice>("RANDOM_V2_BASE_DURATION", "Random v2 Base Duration", juce::StringArray{"4 bars", "2 bars", "1 bar", "1/2 .", "1/2", "1/4"}, 2));
+    add(std::make_unique<juce::AudioParameterChoice>("RANDOM_V2_BASE_DURATION", "Random v2 Base Duration", juce::StringArray{"4 Bars", "2 Bars", "Whole Note (4/4)", "Dotted Half (3/4)", "Half Note (2/4)", "Quarter Note (1/4)"}, 2));
     add(std::make_unique<juce::AudioParameterChoice>("RANDOM_V2_ACCELERATION", "Random v2 Acceleration", juce::StringArray{"x1", "x2", "x4", "x8"}, 1));
     for (int i = 0; i < 8; ++i)
     {

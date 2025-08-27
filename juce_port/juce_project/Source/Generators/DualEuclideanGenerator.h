@@ -14,11 +14,16 @@ public:
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
+    juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate) override;
+    void reset() override;
+
 private:
     // Internal state
     int masterStepA_ = -1;
     int masterStepB_ = -1;
     double lastBeat_ = -1.0;
+    int lastDeviationA_ = 0;
+    int lastDeviationB_ = 0;
     std::vector<bool> patternA_;
     std::vector<bool> patternB_;
     std::vector<int> scaleNotes_;
@@ -26,6 +31,7 @@ private:
 
     // Helper methods
     void updatePattern(std::vector<bool>& pattern, int steps, int pulses);
+    int getDeviatedNote(int baseNote, int deviationRange, bool isBipolar);
 
     // Random number generation
     juce::Random random_;

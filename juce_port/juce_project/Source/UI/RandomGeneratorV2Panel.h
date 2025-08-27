@@ -39,5 +39,15 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> accelerationAttachment;
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> burstPatternAttachments;
 
+    juce::Label minNoteLabel;
+    juce::Label maxNoteLabel;
+    juce::Label burstProbabilityLabel;
+    juce::Label noteProbabilityLabel;
+    juce::Label baseDurationLabel;
+    juce::Label accelerationLabel;
+    juce::Label burstPatternLabel;
+    juce::Label noteSelectionLabel;
+    juce::Label engineLabel;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RandomGeneratorV2Panel)
 };

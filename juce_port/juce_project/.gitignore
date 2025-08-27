@@ -12,8 +12,8 @@ Makefile
 !CMakeLists.txt
 
 # Build directories
-Builds/
-build/
+./build
+./Builds
 
 # IDE files
 *.user
@@ -27,3 +27,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Ignore duplicate project structure
+D/

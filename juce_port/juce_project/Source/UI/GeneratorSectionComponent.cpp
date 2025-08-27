@@ -8,6 +8,10 @@ GeneratorSectionComponent::GeneratorSectionComponent(CreativeMidiGeneratorAudioP
       randomV2Panel(p)
 {
     addAndMakeVisible(generatorTypeCombo);
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("GENERATOR_TYPE")))
+    {
+        generatorTypeCombo.addItemList(choiceParam->choices, 1);
+    }
     generatorTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "GENERATOR_TYPE", generatorTypeCombo);
 
     addAndMakeVisible(randomPanel);

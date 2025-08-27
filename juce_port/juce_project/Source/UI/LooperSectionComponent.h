@@ -4,7 +4,8 @@
 #include "../PluginProcessor.h"
 #include "TimelineComponent.h"
 
-class LooperSectionComponent : public juce::Component
+class LooperSectionComponent : public juce::Component,
+                               public CreativeMidiGeneratorAudioProcessor::Listener
 {
 public:
     LooperSectionComponent(CreativeMidiGeneratorAudioProcessor&);
@@ -12,6 +13,10 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+
+    // CreativeMidiGeneratorAudioProcessor::Listener overrides
+    void playbackStateChanged(bool isPlaying) override;
+    void looperStateChanged(bool isPlaying) override;
 
 private:
     CreativeMidiGeneratorAudioProcessor& audioProcessor;

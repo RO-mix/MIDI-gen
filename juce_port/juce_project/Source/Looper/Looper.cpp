@@ -10,11 +10,50 @@ Looper::Looper()
     reverse = false;
 }
 
+void Looper::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    // This method is required by the PluginProcessor but the looper
+    // currently does not need to do any special preparation.
+    // We can add logic here later if needed.
+    juce::ignoreUnused(sampleRate, samplesPerBlock);
+}
+
 void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 {
-    if (isRecording)
+    if (!isRecording) return;
+
+    // juce::Logger::writeToLog("Looper::recordNote: Received " + message.getDescription() + " at beat " + juce::String(beatTime));
+
+    if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
     {
-        recordedNotes.push_back({message, beatTime});
+        stopRecording();
+        startPlayback();
+        return;
+    }
+
+    if (message.isNoteOn())
+    {
+        // Add to pending notes, waiting for a note off
+        pendingNotes.push_back({message, beatTime, 0.0});
+    }
+    else if (message.isNoteOff())
+    {
+        // Find the matching note on
+        auto it = std::find_if(pendingNotes.begin(), pendingNotes.end(), [&](const RecordedNote& n) {
+            return n.message.getNoteNumber() == message.getNoteNumber() &&
+                   n.message.getChannel() == message.getChannel();
+        });
+
+        if (it != pendingNotes.end())
+        {
+            // Calculate duration and add to the main list
+            it->durationInBeats = beatTime - it->beatTime;
+            // Ensure minimum duration for visibility
+            if (it->durationInBeats <= 0) it->durationInBeats = 0.1;
+
+            recordedNotes.push_back(*it);
+            pendingNotes.erase(it);
+        }
     }
 }
 
@@ -54,7 +93,7 @@ void Looper::clear()
     isRecording = false;
 }
 
-juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime)
+juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
 {
     if (!isPlaying)
         return juce::MidiBuffer();
@@ -62,7 +101,7 @@ juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, dou
     switch (currentMode)
     {
         case LooperMode::MidiLooper:
-            return processMidiLooperBuffer(numSamples, startTime, endTime);
+            return processMidiLooperBuffer(numSamples, startTime, endTime, isPadMode);
         case LooperMode::GenerationLooper:
             return processGenerationLooperBuffer(numSamples, startTime, endTime);
         default:
@@ -77,7 +116,7 @@ void Looper::setMode(LooperMode mode)
     clear();
 }
 
-juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime)
+juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
 {
     playbackHead_ = startTime;
     juce::MidiBuffer buffer;
@@ -89,26 +128,36 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
     if (loopDuration <= 0.0)
         return buffer;
 
-    // Вычисляем текущую позицию в лупе
-    double currentTime = startTime;
-    double loopPosition = std::fmod(currentTime - loopStart, loopDuration);
+    double blockDuration = endTime - startTime;
 
-    // Находим ноты, которые должны сыграться в этом временном окне
     for (const auto& note : recordedNotes)
     {
-        double noteTimeInLoop = note.beatTime - loopStart;
-
-        // Проверяем, попадает ли нота в текущее окно воспроизведения
-        if (noteTimeInLoop >= loopPosition && noteTimeInLoop < loopPosition + (endTime - startTime))
+        // Check two full loops to handle events that wrap around the start/end of the block
+        for (int i = -1; i <= 1; ++i)
         {
-            // Вычисляем время ноты в сэмплах
-            double timeInSamples = (noteTimeInLoop - loopPosition) * (numSamples / (endTime - startTime));
-            int samplePosition = static_cast<int>(timeInSamples);
+            double loopOffset = i * loopDuration;
+            double noteOnBeat = note.beatTime + loopOffset;
+            double noteOffBeat = note.beatTime + note.durationInBeats + loopOffset;
 
-            if (samplePosition >= 0 && samplePosition < numSamples)
+            // Schedule Note On
+            if (noteOnBeat >= startTime && noteOnBeat < endTime)
             {
-                juce::MidiMessage processedMessage = applyEffects(note.message, note.beatTime - startTime);
-                buffer.addEvent(processedMessage, samplePosition);
+                int samplePosition = static_cast<int>(((noteOnBeat - startTime) / blockDuration) * numSamples);
+                if (samplePosition >= 0 && samplePosition < numSamples)
+                {
+                    buffer.addEvent(applyEffects(note.message, 0), samplePosition);
+                }
+            }
+
+            // Schedule Note Off
+            if (!isPadMode && noteOffBeat >= startTime && noteOffBeat < endTime)
+            {
+                int samplePosition = static_cast<int>(((noteOffBeat - startTime) / blockDuration) * numSamples);
+                if (samplePosition >= 0 && samplePosition < numSamples)
+                {
+                    auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
+                    buffer.addEvent(applyEffects(noteOffMessage, 0), samplePosition);
+                }
             }
         }
     }
@@ -175,7 +224,7 @@ double Looper::getPlaybackProgress() const
     return std::fmod(progress, 1.0);
 }
 
-juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, double timeOffset)
+juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, [[maybe_unused]] double timeOffset)
 {
     juce::MidiMessage result = message;
 
@@ -225,13 +274,229 @@ void Looper::setLoopPoints(double start, double end)
     loopEnd = end;
 }
 
-void Looper::startRecording()
+void Looper::startRecording(double maxDuration, bool isOverdub)
 {
+    maxRecordLengthBeats_ = maxDuration;
+    recordingStartTime_ = playbackHead_; // Assume playbackHead is current time
     setRecording(true);
-    clear(); // Очищаем предыдущие записи
+    if (!isOverdub)
+    {
+        clear(); // Очищаем предыдущие записи
+    }
 }
 
 void Looper::stopRecording()
 {
     setRecording(false);
+}
+
+void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub)
+{
+    if (!isOverdub)
+    {
+        clear();
+    }
+
+    std::map<int, std::pair<double, int>> noteOnEvents; // note -> { beatTime, velocity }
+
+    const double beatsPerSample = bpm / 60.0 / sampleRate;
+
+    for (const auto metadata : buffer)
+    {
+        const auto message = metadata.getMessage();
+        const double beatTime = metadata.samplePosition * beatsPerSample;
+
+        juce::Logger::writeToLog("Looper::load: Processing event at beat " + juce::String(beatTime));
+
+        if (message.isNoteOn())
+        {
+            noteOnEvents[message.getNoteNumber()] = { beatTime, message.getVelocity() };
+        }
+        else if (message.isNoteOff())
+        {
+            auto it = noteOnEvents.find(message.getNoteNumber());
+            if (it != noteOnEvents.end())
+            {
+                RecordedNote newNote;
+                newNote.message = juce::MidiMessage::noteOn(message.getChannel(),
+                                                            message.getNoteNumber(),
+                                                            (juce::uint8)it->second.second);
+                newNote.beatTime = it->second.first;
+                newNote.durationInBeats = beatTime - it->second.first;
+
+                // Ensure duration is not negative or zero
+                if (newNote.durationInBeats <= 0)
+                    newNote.durationInBeats = 0.125; // Default to a 32nd note
+
+                juce::Logger::writeToLog("Looper::load: Stored note " + juce::String(newNote.message.getNoteNumber()) +
+                                         " | Start: " + juce::String(newNote.beatTime) +
+                                         " | Duration: " + juce::String(newNote.durationInBeats));
+
+                recordedNotes.push_back(newNote);
+                noteOnEvents.erase(it);
+            }
+        }
+    }
+
+    pristine_loop_ = recordedNotes; // Save a pristine copy
+
+    // Update loop points based on content
+    if (!recordedNotes.empty())
+    {
+        double maxBeat = 0.0;
+        for (const auto& note : recordedNotes)
+        {
+            maxBeat = std::max(maxBeat, note.beatTime + note.durationInBeats);
+        }
+        loopStart = 0.0;
+        // Round up to the nearest bar
+        loopEnd = std::ceil(maxBeat / 4.0) * 4.0;
+        if (loopEnd == 0) loopEnd = 4.0; // Ensure at least one bar
+    }
+    else
+    {
+        loopStart = 0.0;
+        loopEnd = 4.0; // Default to 4 beats if empty
+    }
+}
+
+void Looper::unquantize()
+{
+    recordedNotes = pristine_loop_;
+}
+
+void Looper::quantize(double gridInBeats)
+{
+    if (gridInBeats <= 0)
+    {
+        unquantize();
+        return;
+    }
+
+    recordedNotes = pristine_loop_; // Start from the pristine version
+    for (auto& note : recordedNotes)
+    {
+        note.beatTime = std::round(note.beatTime / gridInBeats) * gridInBeats;
+    }
+}
+
+void Looper::doubleLoop()
+{
+    if (recordedNotes.empty())
+    {
+        loopEnd *= 2.0;
+        return;
+    }
+
+    const double currentDuration = loopEnd - loopStart;
+    std::vector<RecordedNote> notesToAppend;
+    for (const auto& note : recordedNotes)
+    {
+        RecordedNote newNote = note;
+        newNote.beatTime += currentDuration;
+        notesToAppend.push_back(newNote);
+    }
+
+    recordedNotes.insert(recordedNotes.end(), notesToAppend.begin(), notesToAppend.end());
+    loopEnd *= 2.0;
+    pristine_loop_ = recordedNotes; // This becomes the new pristine state
+}
+
+void Looper::generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes)
+{
+    if (pristine_loop_.empty() || scaleNotes.empty()) return;
+
+    recordedNotes.clear();
+    juce::Random random;
+
+    for (const auto& note : pristine_loop_)
+    {
+        recordedNotes.push_back(note); // Add the original note
+
+        int noteNumber = note.message.getNoteNumber();
+
+        // Bass variations (add octave down)
+        if (noteNumber < 48 && random.nextFloat() < bassIntensity)
+        {
+            auto bassNote = note;
+            bassNote.message = juce::MidiMessage::noteOn(note.message.getChannel(), noteNumber - 12, note.message.getVelocity());
+            recordedNotes.push_back(bassNote);
+        }
+
+        // Mid variations (add thirds/fifths)
+        if (noteNumber >= 48 && noteNumber < 72 && random.nextFloat() < midIntensity)
+        {
+            // Find note in scale
+            int noteIndex = -1;
+            for(int i=0; i< (int)scaleNotes.size(); ++i)
+            {
+                if((noteNumber % 12) == (rootNote % 12 + scaleNotes[i]) % 12)
+                {
+                    noteIndex = i;
+                    break;
+                }
+            }
+
+            if(noteIndex != -1)
+            {
+                int harmonyIndex = (noteIndex + (random.nextBool() ? 2 : 4)) % scaleNotes.size(); // Third or Fifth
+                int octave = noteNumber / 12;
+                int harmonyNoteNumber = octave * 12 + rootNote + scaleNotes[harmonyIndex];
+                if (harmonyNoteNumber >= 128) harmonyNoteNumber -= 12;
+
+                auto harmonyNote = note;
+                harmonyNote.message = juce::MidiMessage::noteOn(note.message.getChannel(), harmonyNoteNumber, (juce::uint8)(note.message.getVelocity() * 0.8f));
+                recordedNotes.push_back(harmonyNote);
+            }
+        }
+
+        // High variations (add grace notes)
+        if (noteNumber >= 72 && random.nextFloat() < highIntensity)
+        {
+            int graceNoteNumber = noteNumber + (random.nextBool() ? 1 : -1);
+            if (graceNoteNumber < 0 || graceNoteNumber > 127) graceNoteNumber = noteNumber;
+
+            auto graceNote = note;
+            graceNote.beatTime -= 0.05;
+            graceNote.durationInBeats = 0.05;
+            graceNote.message = juce::MidiMessage::noteOn(note.message.getChannel(), graceNoteNumber, (juce::uint8)(note.message.getVelocity() * 0.7f));
+            recordedNotes.push_back(graceNote);
+        }
+    }
+
+    pristine_loop_ = recordedNotes; // The variation becomes the new pristine state
+}
+
+void Looper::splitLoop(bool keepFirstHalf)
+{
+    const double currentDuration = loopEnd - loopStart;
+    const double midpoint = loopStart + currentDuration / 2.0;
+
+    if (keepFirstHalf)
+    {
+        recordedNotes.erase(
+            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
+                [&](const RecordedNote& note) {
+                    return note.beatTime >= midpoint;
+                }),
+            recordedNotes.end());
+        loopEnd = midpoint;
+    }
+    else // keep second half
+    {
+        recordedNotes.erase(
+            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
+                [&](const RecordedNote& note) {
+                    return note.beatTime < midpoint;
+                }),
+            recordedNotes.end());
+
+        // Shift remaining notes to the start of the loop
+        for (auto& note : recordedNotes)
+        {
+            note.beatTime -= midpoint;
+        }
+        loopEnd = midpoint;
+    }
+    pristine_loop_ = recordedNotes; // This becomes the new pristine state
 }

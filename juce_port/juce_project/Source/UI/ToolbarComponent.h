@@ -3,7 +3,8 @@
 #include <JuceHeader.h>
 #include "../PluginProcessor.h"
 
-class ToolbarComponent : public juce::Component
+class ToolbarComponent : public juce::Component,
+                         public CreativeMidiGeneratorAudioProcessor::Listener
 {
 public:
     ToolbarComponent(CreativeMidiGeneratorAudioProcessor&);
@@ -12,18 +13,31 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
+    // CreativeMidiGeneratorAudioProcessor::Listener overrides
+    void playbackStateChanged(bool isPlaying) override;
+    void looperStateChanged(bool isPlaying) override;
+
 private:
     CreativeMidiGeneratorAudioProcessor& audioProcessor;
 
     // Row 1: Playback and MIDI
     juce::TextButton startButton;
     juce::Slider bpmSlider;
-    juce::ComboBox midiPortCombo;
     juce::Slider midiChannelSlider;
 
     // Row 2: Musical Context
     juce::ComboBox rootNoteCombo;
     juce::ComboBox scaleCombo;
+    juce::ComboBox presetCombo;
+    juce::TextButton savePresetButton;
+
+    // Preset Management
+    std::unique_ptr<juce::FileChooser> fileChooser;
+    juce::File presetDirectory;
+    juce::StringArray presetFiles;
+    void scanForPresets();
+    void savePreset();
+    void loadPreset(int presetIndex);
 
     // Labels
     juce::Label bpmLabel;

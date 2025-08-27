@@ -21,6 +21,40 @@
               pluginAUSubType="CrMG" pluginAUNumMidiInputs="16" pluginAUNumMidiOutputs="16">
   <MAINGROUP id="B2N8VR" name="CreativeMIDIGenerator">
     <GROUP id="{B5A5F4A0-1234-5678-9ABC-DEF012345678}" name="Source">
+      <GROUP id="{A1B2C3D4-E5F6-G7H8-I9J0-K1L2M3N4O5P6}" name="UI">
+        <FILE id="UI001" name="ToolbarComponent.cpp" compile="1" resource="0"
+              file="Source/UI/ToolbarComponent.cpp"/>
+        <FILE id="UI002" name="ToolbarComponent.h" compile="0" resource="0"
+              file="Source/UI/ToolbarComponent.h"/>
+        <FILE id="UI003" name="GeneratorSectionComponent.cpp" compile="1"
+              resource="0" file="Source/UI/GeneratorSectionComponent.cpp"/>
+        <FILE id="UI004" name="GeneratorSectionComponent.h" compile="0"
+              resource="0" file="Source/UI/GeneratorSectionComponent.h"/>
+        <FILE id="UI005" name="RandomGeneratorPanel.cpp" compile="1" resource="0"
+              file="Source/UI/RandomGeneratorPanel.cpp"/>
+        <FILE id="UI006" name="RandomGeneratorPanel.h" compile="0" resource="0"
+              file="Source/UI/RandomGeneratorPanel.h"/>
+        <FILE id="UI007" name="EuclideanGeneratorPanel.cpp" compile="1"
+              resource="0" file="Source/UI/EuclideanGeneratorPanel.cpp"/>
+        <FILE id="UI008" name="EuclideanGeneratorPanel.h" compile="0" resource="0"
+              file="Source/UI/EuclideanGeneratorPanel.h"/>
+        <FILE id="UI009" name="DualEuclideanGeneratorPanel.cpp" compile="1"
+              resource="0" file="Source/UI/DualEuclideanGeneratorPanel.cpp"/>
+        <FILE id="UI010" name="DualEuclideanGeneratorPanel.h" compile="0"
+              resource="0" file="Source/UI/DualEuclideanGeneratorPanel.h"/>
+        <FILE id="UI011" name="RandomGeneratorV2Panel.cpp" compile="1"
+              resource="0" file="Source/UI/RandomGeneratorV2Panel.cpp"/>
+        <FILE id="UI012" name="RandomGeneratorV2Panel.h" compile="0" resource="0"
+              file="Source/UI/RandomGeneratorV2Panel.h"/>
+        <FILE id="UI013" name="LooperSectionComponent.cpp" compile="1" resource="0"
+              file="Source/UI/LooperSectionComponent.cpp"/>
+        <FILE id="UI014" name="LooperSectionComponent.h" compile="0" resource="0"
+              file="Source/UI/LooperSectionComponent.h"/>
+        <FILE id="UI015" name="TimelineComponent.cpp" compile="1" resource="0"
+              file="Source/UI/TimelineComponent.cpp"/>
+        <FILE id="UI016" name="TimelineComponent.h" compile="0" resource="0"
+              file="Source/UI/TimelineComponent.h"/>
+      </GROUP>
       <FILE id="B2N8VR02" name="PluginProcessor.cpp" compile="1" resource="0"
             file="Source/PluginProcessor.cpp"/>
       <FILE id="B2N8VR03" name="PluginEditor.cpp" compile="1" resource="0"
@@ -31,8 +65,6 @@
             file="Source/PluginEditor.h"/>
     </GROUP>
     <GROUP id="{C6B6G5B1-2345-6789-BCDE-F12345678901}" name="Generators">
-      <FILE id="C6B6G5B102" name="BaseGenerator.cpp" compile="1" resource="0"
-            file="Source/Generators/BaseGenerator.cpp"/>
       <FILE id="C6B6G5B103" name="BaseGenerator.h" compile="0" resource="0"
             file="Source/Generators/BaseGenerator.h"/>
       <FILE id="C6B6G5B104" name="Duration.cpp" compile="1" resource="0"
@@ -50,6 +82,10 @@
             file="Source/Generators/RandomGenerator.cpp"/>
       <FILE id="C6B6G5B111" name="RandomGenerator.h" compile="0" resource="0"
             file="Source/Generators/RandomGenerator.h"/>
+      <FILE id="GENV201" name="RandomGeneratorV2.cpp" compile="1" resource="0"
+            file="Source/Generators/RandomGeneratorV2.cpp"/>
+      <FILE id="GENV202" name="RandomGeneratorV2.h" compile="0" resource="0"
+            file="Source/Generators/RandomGeneratorV2.h"/>
     </GROUP>
     <GROUP id="{D7C7H6C2-3456-7890-CDEF-234567890123}" name="Looper">
       <FILE id="D7C7H6C202" name="Looper.cpp" compile="1" resource="0" file="Source/Looper/Looper.cpp"/>

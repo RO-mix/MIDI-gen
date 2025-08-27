@@ -15,6 +15,9 @@ public:
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
+    juce::MidiBuffer getPattern(double durationInBeats, juce::AudioProcessorValueTreeState& apvts, double sampleRate) override;
+    void reset() override;
+
 private:
     // Internal state, not parameters
     double lastBeat_ = -1.0;
@@ -24,6 +27,5 @@ private:
     int rootNote_ = 0;
 
     // Helper methods
-    int calculateVelocity(float bias, int maxVelocity) const;
-    float getRandomDuration(float bias) const;
+    int calculateVelocity(float bias, int maxVelocity);
 };

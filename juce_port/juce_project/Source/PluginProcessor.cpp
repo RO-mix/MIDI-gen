@@ -174,75 +174,10 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    bool throughEnabled = apvts.getRawParameterValue("LOOPER_THROUGH")->load() > 0.5f;
-    if (throughEnabled && !lastThroughState_ && activeGenerator)
-    {
-        activeGenerator->reset();
-    }
-    lastThroughState_ = throughEnabled;
-    bool looperIsPlaying = looper_ && looper_->isPlaybackActive();
-
     juce::MidiBuffer generatedMidi;
-    if (activeGenerator != nullptr && isPlaying_)
+    if (activeGenerator != nullptr && isPlaying_ && !looper_->isPlaybackActive())
     {
-        if (!looperIsPlaying || throughEnabled)
-        {
-            activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, buffer.getNumSamples());
-            midiMessages.addEvents(generatedMidi, 0, -1, 0);
-        }
-
-        if (!looperIsPlaying)
-        {
-            std::lock_guard<std::mutex> lock(liveNotesMutex);
-
-            // Clean up old notes that are no longer visible
-            liveNotes.erase(std::remove_if(liveNotes.begin(), liveNotes.end(),
-                                           [this](const LiveNote& note) {
-                                               return note.startTime < this->currentBeat_ - 17.0;
-                                           }),
-                            liveNotes.end());
-
-            // Add new notes from the generator's output
-            for (const auto metadata : generatedMidi)
-            {
-                const auto msg = metadata.getMessage();
-                if (msg.isNoteOn())
-                {
-                    double beat = lastBlockBeat + metadata.samplePosition * beatsPerSample;
-
-                    // For visualization, we use a fixed duration based on the generator's rate.
-                    auto* genTypeParam = apvts.getRawParameterValue("GENERATOR_TYPE");
-                    int genType = genTypeParam ? static_cast<int>(genTypeParam->load()) : 0;
-                    juce::String rateParamId;
-                    switch(genType)
-                    {
-                        case 0: rateParamId = "RANDOM_RATE"; break;
-                        case 1: rateParamId = "EUCLIDEAN_RATE"; break;
-                        case 2: rateParamId = "DUAL_EUCLIDEAN_RATE"; break;
-                        case 3: rateParamId = "RANDOM_V2_BASE_DURATION"; break; // This one is different
-                        default: rateParamId = "RANDOM_RATE"; break;
-                    }
-
-                    auto* rateParam = apvts.getRawParameterValue(rateParamId);
-                    int rateChoice = rateParam ? static_cast<int>(rateParam->load()) : 4;
-                    float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
-                    float durationInBeats = (rateChoice >= 0 && rateChoice < std::size(rateMap)) ? rateMap[rateChoice] : 1.0f;
-
-                    if (genType == 3) // Special handling for Random v2
-                    {
-                        float durationMap[] = { 16.0f, 8.0f, 4.0f, 3.0f, 2.0f, 1.0f };
-                        durationInBeats = (rateChoice >= 0 && rateChoice < std::size(durationMap)) ? durationMap[rateChoice] : 4.0f;
-                    }
-
-                    liveNotes.push_back({
-                        msg.getNoteNumber(),
-                        msg.getVelocity(),
-                        beat,
-                        (double)durationInBeats
-                    });
-                }
-            }
-        }
+        activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat);
     }
 
     if (looper_ && looper_->isRecordingActive())
@@ -253,7 +188,9 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    if (looperIsPlaying)
+    midiMessages.addEvents(generatedMidi, 0, -1, 0);
+
+    if (looper_ && looper_->isPlaybackActive())
     {
         bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
         juce::MidiBuffer looperBuffer = looper_->getPlaybackBuffer(buffer.getNumSamples(), lastBlockBeat, currentBeat_, isPadMode);
@@ -262,29 +199,6 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
             juce::Logger::writeToLog("PROCESS: Looper generated " + juce::String(looperBuffer.getNumEvents()) + " events this block.");
         }
         midiMessages.addEvents(looperBuffer, 0, -1, 0);
-
-        // Handle Auto-Recapture
-        if (autoRecapturePeriod_ > 0)
-        {
-            double currentProgress = looper_->getPlaybackProgress();
-            if (currentProgress < lastLoopPosition_ && lastLoopPosition_ > 0.9) // Loop has wrapped around
-            {
-                loopCounter_++;
-                if (loopCounter_ >= autoRecapturePeriod_)
-                {
-                    loopCounter_ = 0;
-                    juce::Logger::writeToLog("Auto-Recapture triggered.");
-                    scheduleLooperAction(LooperAction::Capture);
-                }
-            }
-            lastLoopPosition_ = currentProgress;
-        }
-    }
-    else
-    {
-        // Reset auto-recapture counters if looper is stopped
-        loopCounter_ = 0;
-        lastLoopPosition_ = 0.0;
     }
 }
 
@@ -506,12 +420,6 @@ double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const
     return looper_ ? looper_->getPlaybackProgress() : 0.0;
 }
 
-std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
-{
-    std::lock_guard<std::mutex> lock(liveNotesMutex);
-    return liveNotes;
-}
-
 
 void CreativeMidiGeneratorAudioProcessor::togglePlayback()
 {
@@ -585,8 +493,6 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
             {
                 juce::Logger::writeToLog("ACTION: Stopping looper playback.");
                 looper_->stopPlayback();
-                if (activeGenerator)
-                    activeGenerator->reset();
             }
             else
             {
@@ -618,14 +524,13 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                 }
                 bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
-                looper_->startRecording(recordLengthInBeats, isOverdub, currentBeat_);
+                looper_->startRecording(recordLengthInBeats, isOverdub);
             }
             break;
         }
         case LooperAction::Capture:
         {
             juce::Logger::writeToLog("ACTION: Executing Capture.");
-            sendAllNotesOff = true;
             if (activeGenerator && looper_)
             {
                 auto* durationParam = apvts.getRawParameterValue("LOOPER_CAPTURE_DURATION");
@@ -646,9 +551,8 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                     bool isOverdub = apvts.getRawParameterValue("LOOPER_CAPTURE_OVERDUB")->load() > 0.5f;
                     auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
                     juce::Logger::writeToLog("ACTION: Pattern generated with " + juce::String(pattern.getNumEvents()) + " events.");
-                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub, durationInBeats);
+                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub);
                     looper_->startPlayback();
-                    listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
                 }
             }
             break;

@@ -23,7 +23,7 @@ public:
     // Основные методы управления
     void recordNote(const juce::MidiMessage& message, double beatTime);
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
-    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration);
+    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub);
     void startPlayback();
     void stopPlayback();
     void clear();
@@ -71,7 +71,7 @@ public:
 
 
     // Управление записью/воспроизведением
-    void startRecording(double maxDuration, bool isOverdub, double currentBeat);
+    void startRecording(double maxDuration, bool isOverdub);
     void stopRecording();
     void setRecording(bool recording);
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include "PendingNoteOff.h"
 
 class BaseGenerator
 {
@@ -18,12 +19,12 @@ public:
      * @param sampleRate The current sample rate.
      * @param currentBeat The current beat position in the host's timeline.
      */
-    virtual void process(juce::MidiBuffer& midiMessages,
-                         juce::AudioProcessorValueTreeState& apvts,
-                         double sampleRate,
-                         double blockStartTime,
-                         double blockEndTime,
-                         int numSamples) = 0;
+    virtual juce::Array<PendingNoteOff> process(juce::MidiBuffer& midiMessages,
+                                                juce::AudioProcessorValueTreeState& apvts,
+                                                double sampleRate,
+                                                double blockStartTime,
+                                                double blockEndTime,
+                                                int numSamples) = 0;
 
     /**
      * @brief Sets the musical scale for the generator.

@@ -11,9 +11,7 @@ public:
     void process(juce::MidiBuffer& midiMessages,
                  juce::AudioProcessorValueTreeState& apvts,
                  double sampleRate,
-                 double blockStartTime,
-                 double blockEndTime,
-                 int numSamples) override;
+                 double currentBeat) override;
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
@@ -21,13 +19,8 @@ public:
     void reset() override;
 
 private:
-    // Helpers for process()
-    void generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double blockStartTime, double blockEndTime, int numSamples);
-    void addNote(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat, double blockStartTime, double blockEndTime, int numSamples);
-
-    // Helpers for getPattern()
-    void generateEventsAtForPattern(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate);
-    void addNoteForPattern(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat);
+    void generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate);
+    void addNote(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat);
 
     double lastBeat_ = -1.0;
     double nextEventBeat_ = 0.0;

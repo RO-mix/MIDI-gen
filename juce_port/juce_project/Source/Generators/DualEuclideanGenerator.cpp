@@ -11,9 +11,7 @@ DualEuclideanGenerator::DualEuclideanGenerator()
 void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                                    juce::AudioProcessorValueTreeState& apvts,
                                    double sampleRate,
-                                   double blockStartTime,
-                                   double blockEndTime,
-                                   int numSamples)
+                                   double currentBeat)
 {
     // Fetch global parameters
     int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
@@ -49,45 +47,41 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
     float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
     float rate = (rateChoice >= 0 && static_cast<size_t>(rateChoice) < std::size(rateMap)) ? rateMap[rateChoice] : 0.25f;
 
-    if (lastBeat_ < 0) lastBeat_ = blockStartTime;
+    if (lastBeat_ < 0) lastBeat_ = currentBeat;
 
-    double blockDurationInBeats = blockEndTime - blockStartTime;
-
-    while (lastBeat_ < blockEndTime)
+    while (lastBeat_ < currentBeat)
     {
-        double beatInBlock = lastBeat_ - blockStartTime;
-        int samplePos = static_cast<int>((beatInBlock / blockDurationInBeats) * numSamples);
-
-        if (samplePos >= 0 && samplePos < numSamples)
+        if (random_.nextFloat() < noteProbability)
         {
-            if (random_.nextFloat() < noteProbability)
+            // Machine A
+            if (!patternA_.empty())
             {
-                // Machine A
-                if (!patternA_.empty())
+                masterStepA_ = (masterStepA_ + 1) % patternA_.size();
+                if (patternA_[masterStepA_])
                 {
-                    masterStepA_ = (masterStepA_ + 1) % patternA_.size();
-                    if (patternA_[masterStepA_])
-                    {
-                        int finalNoteA = getDeviatedNote(noteA, devA, bipolarA);
-                        float durationInBeats = Duration::getBiasedDuration(durationBiasA, rate);
-                        int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
-                        midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteA, (juce::uint8)velocityA), samplePos);
-                        midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamples);
-                    }
+                    int finalNoteA = getDeviatedNote(noteA, devA, bipolarA);
+                    float durationInBeats = Duration::getBiasedDuration(durationBiasA, rate);
+                    int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
+                    int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
+                    if (samplePos < 0) samplePos = 0;
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteA, (juce::uint8)velocityA), samplePos);
+                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamples);
                 }
+            }
 
-                // Machine B
-                if (!patternB_.empty())
+            // Machine B
+            if (!patternB_.empty())
+            {
+                masterStepB_ = (masterStepB_ + 1) % patternB_.size();
+                if (patternB_[masterStepB_])
                 {
-                    masterStepB_ = (masterStepB_ + 1) % patternB_.size();
-                    if (patternB_[masterStepB_])
-                    {
-                        int finalNoteB = getDeviatedNote(noteB, devB, bipolarB);
-                        float durationInBeats = Duration::getBiasedDuration(durationBiasB, rate);
-                        int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
-                        midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
-                        midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
-                    }
+                    int finalNoteB = getDeviatedNote(noteB, devB, bipolarB);
+                    float durationInBeats = Duration::getBiasedDuration(durationBiasB, rate);
+                    int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
+                    int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
+                    if (samplePos < 0) samplePos = 0;
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
+                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
                 }
             }
         }

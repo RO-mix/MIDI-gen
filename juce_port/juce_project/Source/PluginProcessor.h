@@ -8,6 +8,7 @@
 #include "Generators/DualEuclideanGenerator.h"
 #include "Generators/RandomGeneratorV2.h"
 #include "Theory/Scales.h"
+#include "Generators/PendingNoteOff.h"
 #include <map>
 #include <mutex>
 
@@ -139,6 +140,11 @@ private:
     int loopCounter_ = 0;
     double lastLoopPosition_ = 0.0;
     bool lastThroughState_ = false;
+
+    // Note-Off Queue
+    juce::Array<PendingNoteOff> pendingNoteOffs_;
+    juce::Array<juce::MidiBuffer> buffersToMerge_;
+    juce::int64 totalSamples_ = 0;
     
     // Получение BPM из DAW
     double getCurrentBpm() const;

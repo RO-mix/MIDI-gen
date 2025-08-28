@@ -11,9 +11,7 @@ public:
     void process(juce::MidiBuffer& midiMessages,
                  juce::AudioProcessorValueTreeState& apvts,
                  double sampleRate,
-                 double blockStartTime,
-                 double blockEndTime,
-                 int numSamples) override;
+                 double currentBeat) override;
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 

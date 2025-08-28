@@ -152,18 +152,40 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     buffer.addEvent(applyEffects(note.message, 0), samplePosition);
+                    if (isPadMode)
+                        currentlyPlayingNotes.insert(note.message.getNoteNumber());
                 }
             }
 
             // Schedule Note Off
-            if (!isPadMode && absoluteNoteEnd >= startTime && absoluteNoteEnd < endTime)
+            if (absoluteNoteEnd >= startTime && absoluteNoteEnd < endTime)
             {
                 int samplePosition = static_cast<int>(((absoluteNoteEnd - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
                     buffer.addEvent(applyEffects(noteOffMessage, 0), samplePosition);
+                    if (isPadMode)
+                        currentlyPlayingNotes.erase(note.message.getNoteNumber());
                 }
+            }
+        }
+    }
+
+    // PAD Mode: send note off for all playing notes at the end of the loop
+    if (isPadMode)
+    {
+        double nextLoopEnd = floor((startTime - loopStart) / loopDuration + 1) * loopDuration + loopStart;
+        if (nextLoopEnd >= startTime && nextLoopEnd < endTime)
+        {
+            int samplePosition = static_cast<int>(((nextLoopEnd - startTime) / blockDuration) * numSamples);
+            if (samplePosition >= 0 && samplePosition < numSamples)
+            {
+                for (int noteNumber : currentlyPlayingNotes)
+                {
+                    buffer.addEvent(juce::MidiMessage::noteOff(1, noteNumber), samplePosition); // Assuming channel 1
+                }
+                currentlyPlayingNotes.clear();
             }
         }
     }
@@ -303,7 +325,6 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
         clear();
     }
 
-    // note -> vector of { beatTime, velocity }
     std::map<int, std::vector<std::pair<double, int>>> noteOnEvents;
 
     const double beatsPerSample = bpm / 60.0 / sampleRate;
@@ -322,13 +343,11 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
             auto it = noteOnEvents.find(message.getNoteNumber());
             if (it != noteOnEvents.end() && !it->second.empty())
             {
-                // Find the earliest note-on for this pitch
                 auto& noteOns = it->second;
                 auto noteOnIt = std::min_element(noteOns.begin(), noteOns.end(),
                                                  [](const auto& a, const auto& b) {
                                                      return a.first < b.first;
                                                  });
-
                 RecordedNote newNote;
                 newNote.message = juce::MidiMessage::noteOn(message.getChannel(),
                                                             message.getNoteNumber(),
@@ -377,12 +396,12 @@ void Looper::quantize(double gridInBeats)
     }
 }
 
-void Looper::doubleLoop()
+juce::MidiBuffer Looper::doubleLoop()
 {
     if (recordedNotes.empty())
     {
         loopEnd *= 2.0;
-        return;
+        return juce::MidiBuffer();
     }
 
     const double currentDuration = loopEnd - loopStart;
@@ -396,6 +415,88 @@ void Looper::doubleLoop()
 
     recordedNotes.insert(recordedNotes.end(), notesToAppend.begin(), notesToAppend.end());
     loopEnd *= 2.0;
+    pristine_loop_ = recordedNotes;
+    return juce::MidiBuffer(); // No notes are cut off when doubling
+}
+
+juce::MidiBuffer Looper::splitLoop(bool keepFirstHalf)
+{
+    juce::MidiBuffer noteOffsToSend;
+    const double currentDuration = loopEnd - loopStart;
+    const double midpoint = loopStart + currentDuration / 2.0;
+
+    std::vector<RecordedNote> notesToKeep;
+
+    if (keepFirstHalf)
+    {
+        for (const auto& note : recordedNotes)
+        {
+            if (note.beatTime < midpoint)
+            {
+                notesToKeep.push_back(note);
+                if (note.beatTime + note.durationInBeats > midpoint)
+                {
+                    noteOffsToSend.addEvent(juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber()), 0);
+                }
+            }
+        }
+        loopEnd = midpoint;
+    }
+    else // keep second half
+    {
+        for (const auto& note : recordedNotes)
+        {
+            if (note.beatTime >= midpoint)
+            {
+                RecordedNote newNote = note;
+                newNote.beatTime -= midpoint;
+                notesToKeep.push_back(newNote);
+            }
+            else if (note.beatTime < midpoint && note.beatTime + note.durationInBeats > midpoint)
+            {
+                // Note started in the first half but carries over, should be cut off
+                noteOffsToSend.addEvent(juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber()), 0);
+            }
+        }
+        loopEnd = midpoint;
+    }
+
+    recordedNotes = notesToKeep;
+    pristine_loop_ = recordedNotes;
+    return noteOffsToSend;
+}
+
+void Looper::splitLoop(bool keepFirstHalf)
+{
+    const double currentDuration = loopEnd - loopStart;
+    const double midpoint = loopStart + currentDuration / 2.0;
+
+    if (keepFirstHalf)
+    {
+        recordedNotes.erase(
+            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
+                [&](const RecordedNote& note) {
+                    return note.beatTime >= midpoint;
+                }),
+            recordedNotes.end());
+        loopEnd = midpoint;
+    }
+    else // keep second half
+    {
+        recordedNotes.erase(
+            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
+                [&](const RecordedNote& note) {
+                    return note.beatTime < midpoint;
+                }),
+            recordedNotes.end());
+
+        // Shift remaining notes to the start of the loop
+        for (auto& note : recordedNotes)
+        {
+            note.beatTime -= midpoint;
+        }
+        loopEnd = midpoint;
+    }
     pristine_loop_ = recordedNotes; // This becomes the new pristine state
 }
 

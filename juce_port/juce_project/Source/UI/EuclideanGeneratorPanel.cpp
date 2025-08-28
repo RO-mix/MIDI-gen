@@ -75,36 +75,23 @@ void EuclideanGeneratorPanel::paint(juce::Graphics& g)
 void EuclideanGeneratorPanel::resized()
 {
     auto bounds = getLocalBounds().reduced(15);
-    auto itemHeight = 30;
+    auto sliderHeight = 30;
+    auto labelWidth = 120;
     auto spacing = 10;
 
-    auto row = bounds.removeFromTop(itemHeight);
-    auto halfWidth = row.getWidth() / 2;
+    auto createRow = [&](juce::Component& comp) {
+        auto row = bounds.removeFromTop(sliderHeight);
+        comp.setBounds(row.withLeft(labelWidth));
+        bounds.removeFromTop(spacing);
+    };
 
-    // Row 1
-    stepsSlider.setBounds(row.removeFromLeft(halfWidth).withTrimmedLeft(120));
-    pulsesSlider.setBounds(row.withTrimmedLeft(120));
-    bounds.removeFromTop(spacing);
-
-    // Row 2
-    row = bounds.removeFromTop(itemHeight);
-    noteSlider.setBounds(row.removeFromLeft(halfWidth).withTrimmedLeft(120));
-    velocitySlider.setBounds(row.withTrimmedLeft(120));
-    bounds.removeFromTop(spacing);
-
-    // Row 3
-    row = bounds.removeFromTop(itemHeight);
-    deviationRangeSlider.setBounds(row.removeFromLeft(halfWidth).withTrimmedLeft(120));
-    deviationIsBipolarToggle.setBounds(row.withTrimmedLeft(120));
-    bounds.removeFromTop(spacing);
-
-    // Row 4
-    row = bounds.removeFromTop(itemHeight);
-    rateCombo.setBounds(row.removeFromLeft(halfWidth).withTrimmedLeft(120));
-    durationBiasSlider.setBounds(row.withTrimmedLeft(120));
-    bounds.removeFromTop(spacing);
-
-    // Row 5
-    row = bounds.removeFromTop(itemHeight);
-    noteProbabilitySlider.setBounds(row.removeFromLeft(halfWidth).withTrimmedLeft(120));
+    createRow(stepsSlider);
+    createRow(pulsesSlider);
+    createRow(noteSlider);
+    createRow(velocitySlider);
+    createRow(deviationRangeSlider);
+    createRow(durationBiasSlider);
+    createRow(deviationIsBipolarToggle);
+    createRow(rateCombo);
+    createRow(noteProbabilitySlider);
 }

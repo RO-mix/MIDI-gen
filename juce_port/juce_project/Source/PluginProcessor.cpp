@@ -138,27 +138,28 @@ bool CreativeMidiGeneratorAudioProcessor::isBusesLayoutSupported (const BusesLay
 
 void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::MidiBuffer thruMessages;
-    if (apvts.getRawParameterValue("LOOPER_THROUGH")->load())
-    {
-        thruMessages.addEvents(midiMessages, 0, -1, 0);
-    }
-
+    // ==============================================================================
+    // PREPARATION
+    // ==============================================================================
     buffer.clear();
+    const int numSamples = buffer.getNumSamples();
+    const double beatsPerSample = 1.0 / (sampleRate_ * 60.0 / getCurrentBpm());
+    const double blockStartTime = currentBeat_;
+    const double blockEndTime = blockStartTime + numSamples * beatsPerSample;
 
-    currentBpm_ = getCurrentBpm();
-    samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
-    double beatsPerSample = 1.0 / samplesPerBeat_;
+    // Store incoming MIDI to a separate buffer for recording/thru
+    const juce::MidiBuffer inputMidi(midiMessages);
+    midiMessages.clear();
 
-    double lastBlockBeat = currentBeat_;
-    currentBeat_ += buffer.getNumSamples() * beatsPerSample;
-
+    // ==============================================================================
+    // ACTION SCHEDULER
+    // ==============================================================================
+    // Handle timed actions like generator switching and looper commands
     if (isGeneratorSwitchPending_)
     {
-        double nextQuarterNote = std::ceil(lastBlockBeat * 4.0) / 4.0;
-        if (currentBeat_ >= nextQuarterNote && lastBlockBeat < nextQuarterNote)
+        double nextQuarterNote = std::ceil(blockStartTime * 4.0) / 4.0;
+        if (blockEndTime >= nextQuarterNote && blockStartTime < nextQuarterNote)
         {
-            juce::Logger::writeToLog("SWITCHING GENERATOR at beat: " + juce::String(currentBeat_));
             updateActiveGenerator();
             isGeneratorSwitchPending_ = false;
         }
@@ -166,83 +167,78 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
     if (pendingLooperAction != LooperAction::None)
     {
-        if (currentBeat_ >= looperActionTriggerTime_ && lastBlockBeat < looperActionTriggerTime_)
+        if (blockEndTime >= looperActionTriggerTime_ && blockStartTime < looperActionTriggerTime_)
         {
             executePendingLooperAction();
         }
     }
 
-    // The MIDI processing logic is split into several stages:
-    // 1. Generation: Create MIDI from the active source (looper or generator).
-    // 2. Recording: Pass the correct sources to the looper if it's recording.
-    // 3. Output: Combine the audible MIDI streams for the final output.
-    // 4. MIDI Thru: Add any incoming MIDI messages if THRU is enabled.
-
-    // --- 1. Generation Stage ---
-    // We use separate buffers to hold MIDI from different sources.
+    // ==============================================================================
+    // MIDI GENERATION
+    // ==============================================================================
+    // Create buffers for all potential MIDI sources for this block
     juce::MidiBuffer generatedMidi;
     juce::MidiBuffer looperPlaybackMidi;
 
-    // Determine the primary audible source for this block.
+    // 1. Run active generator if plugin is playing
+    if (activeGenerator != nullptr && isPlaying_)
+    {
+        activeGenerator->process(generatedMidi, apvts, sampleRate_, blockStartTime, blockEndTime, numSamples);
+
+        // This is the fix for the timeline display. We copy the notes the generator just created.
+        {
+            const std::lock_guard<std::mutex> lock(liveNotesMutex);
+            liveNotes = activeGenerator->recentNotes;
+        }
+    }
+
+    // 2. Run looper playback if it's active
     if (looper_ && looper_->isPlaybackActive())
     {
-        // If the looper is playing, it's the primary source.
         bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
-        looperPlaybackMidi = looper_->getPlaybackBuffer(buffer.getNumSamples(), lastBlockBeat, currentBeat_, isPadMode);
-    }
-    else if (activeGenerator != nullptr && isPlaying_)
-    {
-        // Otherwise, if the main playback is active, the generator is the source.
-        auto pendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, buffer.getNumSamples());
-        juce::ignoreUnused(pendingNotes); // Note-off queue not yet implemented
+        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, blockStartTime, blockEndTime, isPadMode);
     }
 
-    // --- 2. Recording Stage ---
+    // ==============================================================================
+    // RECORDING LOGIC
+    // ==============================================================================
     if (looper_ && looper_->isRecordingActive())
     {
-        // Per the new logic, the recording source depends on what is currently playing.
+        // Rule: Always record direct MIDI input
+        for (const auto metadata : inputMidi)
+            looper_->recordNote(metadata.getMessage(), blockStartTime + metadata.samplePosition * beatsPerSample);
 
-        // Always record direct MIDI input from the host/keyboard.
-        for (const auto metadata : midiMessages)
-        {
-            looper_->recordNote(metadata.getMessage(), lastBlockBeat + (metadata.samplePosition * beatsPerSample));
-        }
-
-        // Now, add the secondary source (either the looper's own output or the generator's).
+        // Rule: Recording source depends on what's playing
         if (looper_->isPlaybackActive())
         {
-            // Case 1: Looper is playing. We record its output (overdubbing) and ignore the generator.
+            // Overdubbing its own output
             for (const auto metadata : looperPlaybackMidi)
-            {
-                looper_->recordNote(metadata.getMessage(), lastBlockBeat + (metadata.samplePosition * beatsPerSample));
-            }
+                looper_->recordNote(metadata.getMessage(), blockStartTime + metadata.samplePosition * beatsPerSample);
         }
-        else
+        else if (isPlaying_) // only record generator if main play is on
         {
-            // Case 2: Looper is not playing. We record the generator's output.
+            // Recording the generator's output
             for (const auto metadata : generatedMidi)
-            {
-                looper_->recordNote(metadata.getMessage(), lastBlockBeat + (metadata.samplePosition * beatsPerSample));
-            }
+                looper_->recordNote(metadata.getMessage(), blockStartTime + metadata.samplePosition * beatsPerSample);
         }
     }
 
-    // --- 3. Output Stage ---
-    // We start with a clean buffer, as the original `midiMessages` is for input.
-    midiMessages.clear();
+    // ==============================================================================
+    // OUTPUT ROUTING
+    // ==============================================================================
 
-    // If an all-notes-off event is pending, send it and do nothing else.
-    // This ensures a clean stop.
+    // If a panic/stop event is pending, send it and do nothing else for this block.
     if (sendAllNotesOff)
     {
         int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
         midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
+        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 1); // Also turn off sustain
         sendAllNotesOff = false;
-        // Also send a sustain off message just in case PAD mode was active
-        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 1);
-        return; // Skip the rest of the processing for this block
+        currentBeat_ = blockEndTime; // Don't forget to update the beat
+        return;
     }
 
+    // Handle immediate sustain off if PAD mode was just disabled
     if (sendSustainOff_.load())
     {
         int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
@@ -250,7 +246,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         sendSustainOff_ = false;
     }
 
-    // Add the primary audible stream to the output.
+    // Rule: Looper playback has priority over the generator for audible output
     if (looper_ && looper_->isPlaybackActive())
     {
         midiMessages.addEvents(looperPlaybackMidi, 0, -1, 0);
@@ -260,13 +256,23 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         midiMessages.addEvents(generatedMidi, 0, -1, 0);
     }
 
+    // Rule: Add MIDI THRU if enabled
+    if (apvts.getRawParameterValue("LOOPER_THROUGH")->load())
+    {
+        midiMessages.addEvents(inputMidi, 0, -1, 0);
+    }
+
+    // ==============================================================================
+    // FINAL STATE UPDATES
+    // ==============================================================================
+
     // --- Handle Auto-Recapture ---
     if (looper_ && looper_->isPlaybackActive() && autoRecapturePeriod_ > 0)
     {
         double loopDuration = looper_->getDurationInBeats();
         if (loopDuration > 0)
         {
-            double currentLoopPos = fmod(currentBeat_, loopDuration);
+            double currentLoopPos = fmod(blockStartTime, loopDuration);
             if (currentLoopPos < lastLoopPosition_)
             {
                 loopCounter_++;
@@ -280,11 +286,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-
-    if (thruMessages.getNumEvents() > 0)
-    {
-        midiMessages.addEvents(thruMessages, 0, -1, 0);
-    }
+    currentBeat_ = blockEndTime;
 }
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
@@ -613,6 +615,21 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
             }
             else
             {
+                // Starting a new recording.
+                bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
+
+                if (!isOverdub)
+                {
+                    // For a fresh, non-overdub recording, we must stop and clear everything cleanly.
+                    if (looper_->isPlaybackActive())
+                    {
+                        looper_->stopPlayback();
+                    }
+                    // This will kill any hanging notes from the generator or the previous loop.
+                    sendAllNotesOff = true;
+                    looper_->clear();
+                }
+
                 auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
                 double recordLengthInBeats = 16.0;
                 if (lengthParam)
@@ -622,9 +639,10 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                     if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
                         recordLengthInBeats = lengthMap[choice];
                 }
-                bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
+
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
                 looper_->startRecording(recordLengthInBeats, isOverdub, currentBeat_);
+                listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
             }
             break;
         }
@@ -764,17 +782,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
 //==============================================================================
 std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
 {
-    std::vector<LiveNote> notes;
-
-    // It's crucial that this method is thread-safe, as it's called from the UI thread
-    // while the audio thread might be modifying the data.
-    // For now, we'll rely on the fact that `getNotes()` returns a copy or is otherwise safe,
-    // and the generator's `recentNotes` is populated on the audio thread before this is called.
-    // A proper implementation would use lock-free data structures.
+    const std::lock_guard<std::mutex> lock(liveNotesMutex);
 
     if (looper_ && looper_->isPlaybackActive())
     {
-        // If looper is playing, its notes are the source of truth for the timeline.
+        // If looper is playing, convert its notes to LiveNote format for the UI
+        std::vector<LiveNote> notes;
         const auto& looperNotes = looper_->getNotes();
         notes.reserve(looperNotes.size());
         for (const auto& looperNote : looperNotes)
@@ -786,14 +799,11 @@ std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
                 looperNote.durationInBeats
             });
         }
-    }
-    else if (activeGenerator)
-    {
-        // If the generator is playing, get the notes it just generated.
-        notes = activeGenerator->recentNotes;
+        return notes;
     }
 
-    return notes;
+    // Otherwise, return the notes from the generator
+    return liveNotes;
 }
 
 //==============================================================================

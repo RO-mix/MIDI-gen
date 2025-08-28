@@ -88,10 +88,12 @@ void Looper::stopPlayback()
 
 void Looper::clear()
 {
+    // This method should only clear data, not state.
+    // The processor is responsible for starting/stopping playback and recording.
     recordedNotes.clear();
+    pristine_loop_.clear();
+    pendingNotes.clear();
     generationBuffer.clear();
-    isPlaying = false;
-    isRecording = false;
 }
 
 juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode)

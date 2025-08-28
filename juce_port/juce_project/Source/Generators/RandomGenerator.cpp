@@ -17,6 +17,8 @@ juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessa
                                                      int numSamples)
 {
     juce::ignoreUnused(numSamples);
+    recentNotes.clear();
+
     // Fetch parameters from APVTS
     auto* minNoteParam = apvts.getRawParameterValue("RANDOM_MIN_NOTE");
     auto* maxNoteParam = apvts.getRawParameterValue("RANDOM_MAX_NOTE");
@@ -107,6 +109,8 @@ juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessa
             {
                 midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
                 midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+
+                recentNotes.push_back({noteNumber, velocity, lastBeat_, durationInBeats});
 
                 if (addCC74)
                 {

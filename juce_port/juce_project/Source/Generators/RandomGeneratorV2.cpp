@@ -15,6 +15,8 @@ juce::Array<PendingNoteOff> RandomGeneratorV2::process(juce::MidiBuffer& midiMes
                                                        int numSamples)
 {
     juce::ignoreUnused(numSamples);
+    recentNotes.clear();
+
     if (lastBeat_ < 0)
     {
         lastBeat_ = blockStartTime;
@@ -164,6 +166,8 @@ void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProce
     midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
     auto noteOffMessage = juce::MidiMessage::noteOff(channel, noteNumber);
     midiMessages.addEvent(noteOffMessage, samplePos + durationInSamples);
+
+    recentNotes.push_back({noteNumber, velocity, beat, durationInBeats});
 }
 
 void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNotes)

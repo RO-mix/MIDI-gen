@@ -146,14 +146,6 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
 
     buffer.clear();
 
-    if (sendAllNotesOff)
-    {
-        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
-        midiMessages.clear();
-        midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
-        sendAllNotesOff = false;
-    }
-
     currentBpm_ = getCurrentBpm();
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     double beatsPerSample = 1.0 / samplesPerBeat_;
@@ -238,6 +230,25 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     // --- 3. Output Stage ---
     // We start with a clean buffer, as the original `midiMessages` is for input.
     midiMessages.clear();
+
+    // If an all-notes-off event is pending, send it and do nothing else.
+    // This ensures a clean stop.
+    if (sendAllNotesOff)
+    {
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
+        sendAllNotesOff = false;
+        // Also send a sustain off message just in case PAD mode was active
+        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 1);
+        return; // Skip the rest of the processing for this block
+    }
+
+    if (sendSustainOff_.load())
+    {
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 0);
+        sendSustainOff_ = false;
+    }
 
     // Add the primary audible stream to the output.
     if (looper_ && looper_->isPlaybackActive())
@@ -498,6 +509,14 @@ double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const
 void CreativeMidiGeneratorAudioProcessor::togglePlayback()
 {
     isPlaying_ = !isPlaying_;
+
+    if (!isPlaying_)
+    {
+        // If we just stopped playback, send an all-notes-off message
+        // to ensure no generator notes are left hanging.
+        sendAllNotesOff = true;
+    }
+
     listeners_.call([&](Listener& l) { l.playbackStateChanged(isPlaying_); });
 }
 
@@ -525,6 +544,13 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
         {
             autoRecapturePeriod_ = periodMap[choice];
             loopCounter_ = 0;
+        }
+    }
+    else if (parameterID == "LOOPER_PAD_MODE")
+    {
+        if (newValue < 0.5f) // If PAD mode was just turned OFF
+        {
+            sendSustainOff_ = true;
         }
     }
 }
@@ -739,14 +765,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
 std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
 {
     std::vector<LiveNote> notes;
-    if (looper_)
+
+    // It's crucial that this method is thread-safe, as it's called from the UI thread
+    // while the audio thread might be modifying the data.
+    // For now, we'll rely on the fact that `getNotes()` returns a copy or is otherwise safe,
+    // and the generator's `recentNotes` is populated on the audio thread before this is called.
+    // A proper implementation would use lock-free data structures.
+
+    if (looper_ && looper_->isPlaybackActive())
     {
-        // The original implementation used a mutex, but since getNotes() returns a const reference
-        // and we're on the message thread, we should be careful. A better approach might be
-        // to have the audio thread push updates to a lock-free queue.
-        // For now, let's just copy the notes from the looper directly.
-        // This assumes the looper's internal vector is not modified during this call,
-        // which is a reasonable assumption for a getter called from the UI thread.
+        // If looper is playing, its notes are the source of truth for the timeline.
         const auto& looperNotes = looper_->getNotes();
         notes.reserve(looperNotes.size());
         for (const auto& looperNote : looperNotes)
@@ -759,6 +787,12 @@ std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGenerator
             });
         }
     }
+    else if (activeGenerator)
+    {
+        // If the generator is playing, get the notes it just generated.
+        notes = activeGenerator->recentNotes;
+    }
+
     return notes;
 }
 

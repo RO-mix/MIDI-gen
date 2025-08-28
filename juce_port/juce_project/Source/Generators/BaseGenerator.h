@@ -1,11 +1,15 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PendingNoteOff.h"
+#include "../LiveNote.h"
+#include <vector>
 
 class BaseGenerator
 {
 public:
     virtual ~BaseGenerator() = default;
+
+    std::vector<LiveNote> recentNotes;
 
     /**
      * @brief Processes a block of audio and generates MIDI messages.

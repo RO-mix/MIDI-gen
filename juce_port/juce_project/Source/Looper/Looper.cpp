@@ -308,9 +308,12 @@ juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, [[maybe
 void Looper::setRecording(bool recording)
 {
     isRecording = recording;
+    // We should be able to record while playing (for overdubbing),
+    // so we don't automatically stop playback here anymore.
+    // The processor logic will handle what gets recorded.
     if (recording)
     {
-        isPlaying = false; // Останавливаем воспроизведение при начале записи
+        // isPlaying = false; // This was preventing overdubbing on a playing loop.
     }
 }
 

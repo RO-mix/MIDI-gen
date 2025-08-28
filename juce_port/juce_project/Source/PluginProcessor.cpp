@@ -762,7 +762,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
 }
 
 //==============================================================================
-std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
+std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
 {
     std::vector<LiveNote> notes;
 

@@ -525,7 +525,7 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                 }
                 bool isOverdub = apvts.getRawParameterValue("LOOPER_RECORD_OVERDUB")->load() > 0.5f;
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
-                looper_->startRecording(recordLengthInBeats, isOverdub);
+                looper_->startRecording(recordLengthInBeats, isOverdub, currentBeat_);
             }
             break;
         }
@@ -552,7 +552,7 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                     bool isOverdub = apvts.getRawParameterValue("LOOPER_CAPTURE_OVERDUB")->load() > 0.5f;
                     auto pattern = activeGenerator->getPattern(durationInBeats, apvts, sampleRate_);
                     juce::Logger::writeToLog("ACTION: Pattern generated with " + juce::String(pattern.getNumEvents()) + " events.");
-                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub);
+                    looper_->loadFromMidiBuffer(pattern, sampleRate_, apvts.getRawParameterValue("BPM")->load(), isOverdub, durationInBeats);
                     looper_->startPlayback();
                 }
             }

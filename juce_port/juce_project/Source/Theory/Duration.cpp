@@ -10,26 +10,20 @@ namespace Duration
         // Ensure bias is in the [0, 1] range
         bias = std::max(0.0f, std::min(1.0f, bias));
 
-        float longDuration = baseRate * 2.0f;
-        float shortDuration = baseRate;
-
-        static std::mt19937 gen(std::random_device{}());
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-
-        float duration;
-        // The bias is the probability of choosing the short duration.
-        if (dist(gen) < bias)
+    if (bias < 0.5f)
         {
-            duration = shortDuration;
+        // Interpolate between Long (rate * 2) and Normal (rate)
+        // Map bias from [0.0, 0.5] to a t-value from [0.0, 1.0]
+        float t = bias * 2.0f;
+        // Invert t because we are going from long to normal as bias increases
+        return juce::jmap(1.0f - t, 0.0f, 1.0f, baseRate, baseRate * 2.0f);
         }
         else
         {
-            duration = longDuration;
+        // Interpolate between Normal (rate) and Short (rate / 2)
+        // Map bias from [0.5, 1.0] to a t-value from [0.0, 1.0]
+        float t = (bias - 0.5f) * 2.0f;
+        return juce::jmap(t, 0.0f, 1.0f, baseRate, baseRate / 2.0f);
         }
-
-        juce::String logMessage = "Duration Logic: bias=" + juce::String(bias) + ", rate=" + juce::String(baseRate) + " -> duration=" + juce::String(duration);
-        juce::Logger::writeToLog(logMessage);
-
-        return duration;
     }
 }

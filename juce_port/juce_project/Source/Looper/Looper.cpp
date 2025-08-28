@@ -274,10 +274,10 @@ void Looper::setLoopPoints(double start, double end)
     loopEnd = end;
 }
 
-void Looper::startRecording(double maxDuration, bool isOverdub)
+void Looper::startRecording(double maxDuration, bool isOverdub, double currentBeat)
 {
     maxRecordLengthBeats_ = maxDuration;
-    recordingStartTime_ = playbackHead_; // Assume playbackHead is current time
+    recordingStartTime_ = currentBeat;
     setRecording(true);
     if (!isOverdub)
     {
@@ -290,14 +290,15 @@ void Looper::stopRecording()
     setRecording(false);
 }
 
-void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub)
+void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration)
 {
     if (!isOverdub)
     {
         clear();
     }
 
-    std::map<int, std::pair<double, int>> noteOnEvents; // note -> { beatTime, velocity }
+    // note -> vector of { beatTime, velocity }
+    std::map<int, std::vector<std::pair<double, int>>> noteOnEvents;
 
     const double beatsPerSample = bpm / 60.0 / sampleRate;
 
@@ -310,53 +311,50 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
 
         if (message.isNoteOn())
         {
-            noteOnEvents[message.getNoteNumber()] = { beatTime, message.getVelocity() };
+            noteOnEvents[message.getNoteNumber()].push_back({ beatTime, message.getVelocity() });
         }
         else if (message.isNoteOff())
         {
             auto it = noteOnEvents.find(message.getNoteNumber());
-            if (it != noteOnEvents.end())
+            if (it != noteOnEvents.end() && !it->second.empty())
             {
+                // Find the earliest note-on for this pitch
+                auto& noteOns = it->second;
+                auto noteOnIt = std::min_element(noteOns.begin(), noteOns.end(),
+                                                 [](const auto& a, const auto& b) {
+                                                     return a.first < b.first;
+                                                 });
+
                 RecordedNote newNote;
                 newNote.message = juce::MidiMessage::noteOn(message.getChannel(),
                                                             message.getNoteNumber(),
-                                                            (juce::uint8)it->second.second);
-                newNote.beatTime = it->second.first;
-                newNote.durationInBeats = beatTime - it->second.first;
+                                                            (juce::uint8)noteOnIt->second);
+                newNote.beatTime = noteOnIt->first;
+                newNote.durationInBeats = beatTime - noteOnIt->first;
 
                 // Ensure duration is not negative or zero
                 if (newNote.durationInBeats <= 0)
                     newNote.durationInBeats = 0.125; // Default to a 32nd note
 
-                juce::Logger::writeToLog("Looper::load: Stored note " + juce::String(newNote.message.getNoteNumber()) +
-                                         " | Start: " + juce::String(newNote.beatTime) +
-                                         " | Duration: " + juce::String(newNote.durationInBeats));
+                // Only add notes that start within the requested duration
+                if (newNote.beatTime < requestedDuration)
+                {
+                    recordedNotes.push_back(newNote);
+                }
 
-                recordedNotes.push_back(newNote);
-                noteOnEvents.erase(it);
+                noteOns.erase(noteOnIt); // Remove the matched note-on
             }
         }
     }
 
     pristine_loop_ = recordedNotes; // Save a pristine copy
 
-    // Update loop points based on content
-    if (!recordedNotes.empty())
-    {
-        double maxBeat = 0.0;
-        for (const auto& note : recordedNotes)
-        {
-            maxBeat = std::max(maxBeat, note.beatTime + note.durationInBeats);
-        }
-        loopStart = 0.0;
-        // Round up to the nearest bar
-        loopEnd = std::ceil(maxBeat / 4.0) * 4.0;
-        if (loopEnd == 0) loopEnd = 4.0; // Ensure at least one bar
-    }
-    else
+    // If not overdubbing, set the loop length to the capture size.
+    // If overdubbing, the existing loop length is maintained.
+    if (!isOverdub)
     {
         loopStart = 0.0;
-        loopEnd = 4.0; // Default to 4 beats if empty
+        loopEnd = requestedDuration;
     }
 }
 

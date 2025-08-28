@@ -35,6 +35,7 @@ private:
     juce::TextButton captureButton;
     juce::ComboBox captureDurationCombo;
     juce::ToggleButton captureOverdubToggle;
+    juce::Label autoLabel;
     juce::ComboBox recapturePeriodCombo;
 
     // Row 3: Recording

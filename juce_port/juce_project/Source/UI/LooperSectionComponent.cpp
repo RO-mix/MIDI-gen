@@ -55,6 +55,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureOverdubToggle.setButtonText("Overdub");
     captureOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_OVERDUB", captureOverdubToggle);
 
+    addAndMakeVisible(autoLabel);
+    autoLabel.setText("AUTO", juce::dontSendNotification);
+    autoLabel.setJustificationType(juce::Justification::centredRight);
+
     addAndMakeVisible(recapturePeriodCombo);
     if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_RECAPTURE_PERIOD")))
     {
@@ -152,6 +156,7 @@ void LooperSectionComponent::resized()
     captureButton.setBounds(row2.removeFromLeft(85));
     captureDurationCombo.setBounds(row2.removeFromLeft(130));
     captureOverdubToggle.setBounds(row2.removeFromLeft(80));
+    autoLabel.setBounds(row2.removeFromLeft(50));
     recapturePeriodCombo.setBounds(row2.removeFromLeft(130));
     bounds.removeFromTop(spacing);
 

@@ -280,14 +280,14 @@ void Looper::setLoopPoints(double start, double end)
     loopEnd = end;
 }
 
-void Looper::startRecording(double maxDuration, bool isOverdub)
+void Looper::startRecording(double maxDuration, bool isOverdub, double currentBeat)
 {
     maxRecordLengthBeats_ = maxDuration;
-    recordingStartTime_ = playbackHead_; // Assume playbackHead is current time
+    recordingStartTime_ = currentBeat;
     setRecording(true);
     if (!isOverdub)
     {
-        clear(); // Очищаем предыдущие записи
+        clear();
     }
 }
 
@@ -296,7 +296,7 @@ void Looper::stopRecording()
     setRecording(false);
 }
 
-void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub)
+void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration)
 {
     if (!isOverdub)
     {
@@ -312,8 +312,6 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
     {
         const auto message = metadata.getMessage();
         const double beatTime = metadata.samplePosition * beatsPerSample;
-
-        juce::Logger::writeToLog("Looper::load: Processing event at beat " + juce::String(beatTime));
 
         if (message.isNoteOn())
         {
@@ -338,40 +336,24 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
                 newNote.beatTime = noteOnIt->first;
                 newNote.durationInBeats = beatTime - noteOnIt->first;
 
-                // Ensure duration is not negative or zero
                 if (newNote.durationInBeats <= 0)
-                    newNote.durationInBeats = 0.125; // Default to a 32nd note
+                    newNote.durationInBeats = 0.125;
 
-                // Only add notes that start within the requested duration
                 if (newNote.beatTime < requestedDuration)
                 {
                     recordedNotes.push_back(newNote);
                 }
-
-                noteOns.erase(noteOnIt); // Remove the matched note-on
+                noteOns.erase(noteOnIt);
             }
         }
     }
 
-    pristine_loop_ = recordedNotes; // Save a pristine copy
+    pristine_loop_ = recordedNotes;
 
-    // Update loop points based on content
-    if (!recordedNotes.empty())
-    {
-        double maxBeat = 0.0;
-        for (const auto& note : recordedNotes)
-        {
-            maxBeat = std::max(maxBeat, note.beatTime + note.durationInBeats);
-        }
-        loopStart = 0.0;
-        // Round up to the nearest bar
-        loopEnd = std::ceil(maxBeat / 4.0) * 4.0;
-        if (loopEnd == 0) loopEnd = 4.0; // Ensure at least one bar
-    }
-    else
+    if (!isOverdub)
     {
         loopStart = 0.0;
-        loopEnd = 4.0; // Default to 4 beats if empty
+        loopEnd = requestedDuration;
     }
 }
 

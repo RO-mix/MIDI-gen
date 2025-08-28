@@ -184,11 +184,125 @@ juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::Aud
 
     while (currentBeat < durationInBeats)
     {
-        generateEventsAt(currentBeat, pattern, apvts, sampleRate);
+        generateEventsAtForPattern(currentBeat, pattern, apvts, sampleRate);
         currentBeat += baseDuration;
     }
 
     return pattern;
+}
+
+// Version of generateEventsAt for getPattern (doesn't need block timing info)
+void RandomGeneratorV2::generateEventsAtForPattern(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate)
+{
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    auto* burstProbParam = apvts.getRawParameterValue("RANDOM_V2_BURST_PROB");
+    auto* noteProbParam = apvts.getRawParameterValue("RANDOM_V2_NOTE_PROB");
+
+    if (!burstProbParam || !noteProbParam) return;
+
+    if (dist(randomEngine_) < burstProbParam->load())
+    {
+        auto* accelParam = apvts.getRawParameterValue("RANDOM_V2_ACCELERATION");
+        if (!accelParam) return;
+
+        float accelMap[] = { 1.0f, 0.5f, 0.25f, 0.125f };
+        int accelChoice = static_cast<int>(accelParam->load());
+        double noteInterval = (accelChoice >= 0 && static_cast<size_t>(accelChoice) < std::size(accelMap)) ? accelMap[accelChoice] : 0.25;
+
+        for (int i = 0; i < 8; ++i)
+        {
+            auto* patternParam = apvts.getRawParameterValue("RANDOM_V2_BURST_PATTERN_" + juce::String(i));
+            if (patternParam && dist(randomEngine_) < patternParam->load())
+            {
+                addNoteForPattern(midiMessages, apvts, sampleRate, beat + (i * noteInterval));
+            }
+        }
+    }
+    else if (dist(randomEngine_) < noteProbParam->load())
+    {
+        addNoteForPattern(midiMessages, apvts, sampleRate, beat);
+    }
+}
+
+// Version of addNote for getPattern (calculates samplePos directly from beat)
+void RandomGeneratorV2::addNoteForPattern(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat)
+{
+    auto* minNoteParam = apvts.getRawParameterValue("RANDOM_V2_MIN_NOTE");
+    auto* maxNoteParam = apvts.getRawParameterValue("RANDOM_V2_MAX_NOTE");
+    auto* channelParam = apvts.getRawParameterValue("MIDI_CHANNEL");
+    auto* bpmParam = apvts.getRawParameterValue("BPM");
+
+    if (!minNoteParam || !maxNoteParam || !channelParam || !bpmParam || scaleNotes_.empty()) return;
+
+    int minNote = static_cast<int>(minNoteParam->load());
+    int maxNote = static_cast<int>(maxNoteParam->load());
+    int channel = static_cast<int>(channelParam->load());
+    double bpm = bpmParam->load();
+
+    std::vector<int> notesInRange;
+    for (int octave = 0; octave < 10; ++octave)
+    {
+        for (int scaleDegree : scaleNotes_)
+        {
+            int note = rootNote_ + (octave * 12) + scaleDegree;
+            if (note >= minNote && note <= maxNote)
+            {
+                notesInRange.push_back(note);
+            }
+        }
+    }
+
+    if (notesInRange.empty()) return;
+
+    int noteNumber;
+    std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+    if (dist(randomEngine_) < 0.5f)
+    {
+        std::vector<int> bassNotes;
+        int root = rootNote_ % 12;
+        int fifth = (root + 7) % 12;
+        for (int note : notesInRange)
+        {
+            if (note % 12 == root || note % 12 == fifth)
+            {
+                bassNotes.push_back(note);
+            }
+        }
+        if (!bassNotes.empty())
+        {
+            int lowestOctave = 10;
+            for (int note : bassNotes) {
+                lowestOctave = std::min(lowestOctave, note / 12);
+            }
+            std::vector<int> lowestBassNotes;
+            for (int note : bassNotes) {
+                if (note / 12 == lowestOctave) {
+                    lowestBassNotes.push_back(note);
+                }
+            }
+            if (!lowestBassNotes.empty())
+                noteNumber = lowestBassNotes[randomEngine_() % lowestBassNotes.size()];
+            else
+                noteNumber = notesInRange[randomEngine_() % notesInRange.size()];
+        }
+        else
+        {
+            noteNumber = notesInRange[randomEngine_() % notesInRange.size()];
+        }
+    }
+    else
+    {
+        noteNumber = notesInRange[randomEngine_() % notesInRange.size()];
+    }
+
+    int velocity = static_cast<int>(randomEngine_() % 60) + 40; // 40-99
+    double durationInBeats = 1.0; // Fixed duration for now
+    int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
+    int samplePos = static_cast<int>(beat * (60.0 / bpm) * sampleRate);
+
+    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
+    auto noteOffMessage = juce::MidiMessage::noteOff(channel, noteNumber);
+    midiMessages.addEvent(noteOffMessage, samplePos + durationInSamples);
 }
 
 void RandomGeneratorV2::reset()

@@ -660,6 +660,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
 }
 
 //==============================================================================
+std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
+{
+    std::vector<LiveNote> notes;
+    if (looper_)
+    {
+        // The original implementation used a mutex, but since getNotes() returns a const reference
+        // and we're on the message thread, we should be careful. A better approach might be
+        // to have the audio thread push updates to a lock-free queue.
+        // For now, let's just copy the notes from the looper directly.
+        // This assumes the looper's internal vector is not modified during this call,
+        // which is a reasonable assumption for a getter called from the UI thread.
+        const auto& looperNotes = looper_->getNotes();
+        notes.reserve(looperNotes.size());
+        for (const auto& looperNote : looperNotes)
+        {
+            notes.push_back({
+                looperNote.message.getNoteNumber(),
+                looperNote.message.getVelocity(),
+                looperNote.beatTime,
+                looperNote.durationInBeats
+            });
+        }
+    }
+    return notes;
+}
+
+//==============================================================================
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {

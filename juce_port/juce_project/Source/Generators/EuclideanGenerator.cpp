@@ -10,7 +10,9 @@ EuclideanGenerator::EuclideanGenerator()
 void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                                juce::AudioProcessorValueTreeState& apvts,
                                double sampleRate,
-                               double currentBeat)
+                               double blockStartTime,
+                               double blockEndTime,
+                               int numSamples)
 {
     // Fetch parameters
     int steps = *apvts.getRawParameterValue("EUCLIDEAN_STEPS");
@@ -37,9 +39,11 @@ void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
     float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
     float rate = (rateChoice >= 0 && rateChoice < std::size(rateMap)) ? rateMap[rateChoice] : 0.25f;
 
-    if (lastBeat_ < 0) lastBeat_ = currentBeat;
+    if (lastBeat_ < 0) lastBeat_ = blockStartTime;
 
-    while (lastBeat_ < currentBeat)
+    double blockDurationInBeats = blockEndTime - blockStartTime;
+
+    while (lastBeat_ < blockEndTime)
     {
         currentStep_ = (currentStep_ + 1) % steps;
 
@@ -72,11 +76,14 @@ void EuclideanGenerator::process(juce::MidiBuffer& midiMessages,
             float durationInBeats = Duration::getBiasedDuration(durationBiasParam ? durationBiasParam->load() : 0.5f, rate);
             int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
-            int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
-            if (samplePos < 0) samplePos = 0;
+            double beatInBlock = lastBeat_ - blockStartTime;
+            int samplePos = static_cast<int>((beatInBlock / blockDurationInBeats) * numSamples);
 
-            midiMessages.addEvent(juce::MidiMessage::noteOn(channel, generatedNote, (juce::uint8)velocity), samplePos);
-            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, generatedNote), samplePos + durationInSamples);
+            if (samplePos >= 0 && samplePos < numSamples)
+            {
+                midiMessages.addEvent(juce::MidiMessage::noteOn(channel, generatedNote, (juce::uint8)velocity), samplePos);
+                midiMessages.addEvent(juce::MidiMessage::noteOff(channel, generatedNote), samplePos + durationInSamples);
+            }
         }
 
         lastBeat_ += rate;

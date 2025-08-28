@@ -12,7 +12,9 @@ RandomGenerator::RandomGenerator()
 void RandomGenerator::process(juce::MidiBuffer& midiMessages,
                             juce::AudioProcessorValueTreeState& apvts,
                             double sampleRate,
-                            double currentBeat)
+                            double blockStartTime,
+                            double blockEndTime,
+                            int numSamples)
 {
     // Fetch parameters from APVTS
     auto* minNoteParam = apvts.getRawParameterValue("RANDOM_MIN_NOTE");
@@ -49,11 +51,11 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
     float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
     float rate = (rateChoice >= 0 && rateChoice < std::size(rateMap)) ? rateMap[rateChoice] : 1.0f;
 
-    if (lastBeat_ < 0) lastBeat_ = currentBeat;
+    if (lastBeat_ < 0) lastBeat_ = blockStartTime;
 
-    // Process events for the current block
-    int startSample = 0; // We process from the start of the block
-    while (lastBeat_ < currentBeat)
+    double blockDurationInBeats = blockEndTime - blockStartTime;
+
+    while (lastBeat_ < blockEndTime)
     {
         if (distribution_(randomEngine_) < noteProbability)
         {
@@ -82,7 +84,11 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
                         possibleNotes.push_back(noteNumber);
                         noteNumber += 12;
                     }
-                    if(possibleNotes.empty()) continue; // No notes in range
+                    if(possibleNotes.empty())
+                    {
+                        lastBeat_ += rate;
+                        continue;
+                    }
                     noteNumber = possibleNotes[randomEngine_() % possibleNotes.size()];
                 }
 
@@ -90,16 +96,18 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
                 float durationInBeats = Duration::getBiasedDuration(durationBias, rate);
                 int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
-                // Calculate sample position for the note on event
-                int samplePos = static_cast<int>(((lastBeat_ - currentBeat) / (60.0 / bpm)) * sampleRate);
-                if (samplePos < 0) samplePos = startSample; // Ensure it's within the current block
+                double beatInBlock = lastBeat_ - blockStartTime;
+                int samplePos = static_cast<int>((beatInBlock / blockDurationInBeats) * numSamples);
 
-                midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-                midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
-
-                if (addCC74)
+                if (samplePos >= 0 && samplePos < numSamples)
                 {
-                    midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
+                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+
+                    if (addCC74)
+                    {
+                        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                    }
                 }
             }
         }

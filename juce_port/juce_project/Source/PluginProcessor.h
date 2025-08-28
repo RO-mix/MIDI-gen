@@ -138,6 +138,7 @@ private:
     int autoRecapturePeriod_ = 0; // 0 for off
     int loopCounter_ = 0;
     double lastLoopPosition_ = 0.0;
+    bool lastThroughState_ = false;
     
     // Получение BPM из DAW
     double getCurrentBpm() const;

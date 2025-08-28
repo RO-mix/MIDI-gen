@@ -175,6 +175,11 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     }
 
     bool throughEnabled = apvts.getRawParameterValue("LOOPER_THROUGH")->load() > 0.5f;
+    if (throughEnabled && !lastThroughState_ && activeGenerator)
+    {
+        activeGenerator->reset();
+    }
+    lastThroughState_ = throughEnabled;
     bool looperIsPlaying = looper_ && looper_->isPlaybackActive();
 
     juce::MidiBuffer generatedMidi;
@@ -182,7 +187,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     {
         if (!looperIsPlaying || throughEnabled)
         {
-            activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat);
+            activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, buffer.getNumSamples());
             midiMessages.addEvents(generatedMidi, 0, -1, 0);
         }
 

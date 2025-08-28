@@ -21,7 +21,9 @@ public:
     virtual void process(juce::MidiBuffer& midiMessages,
                          juce::AudioProcessorValueTreeState& apvts,
                          double sampleRate,
-                         double currentBeat) = 0;
+                         double blockStartTime,
+                         double blockEndTime,
+                         int numSamples) = 0;
 
     /**
      * @brief Sets the musical scale for the generator.

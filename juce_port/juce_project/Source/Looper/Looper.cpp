@@ -132,17 +132,23 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
 
     for (const auto& note : recordedNotes)
     {
-        // Check two full loops to handle events that wrap around the start/end of the block
-        for (int i = -1; i <= 1; ++i)
+        double noteStart = note.beatTime;
+        double noteEnd = note.beatTime + note.durationInBeats;
+
+        // Determine the number of loops we need to check (usually just one or two)
+        double firstLoopIndex = floor((startTime - loopStart - noteEnd) / loopDuration);
+        double lastLoopIndex = floor((endTime - loopStart - noteStart) / loopDuration);
+
+        for (double loopIndex = firstLoopIndex; loopIndex <= lastLoopIndex; ++loopIndex)
         {
-            double loopOffset = i * loopDuration;
-            double noteOnBeat = note.beatTime + loopOffset;
-            double noteOffBeat = note.beatTime + note.durationInBeats + loopOffset;
+            double loopOffset = loopIndex * loopDuration;
+            double absoluteNoteStart = loopStart + noteStart + loopOffset;
+            double absoluteNoteEnd = loopStart + noteEnd + loopOffset;
 
             // Schedule Note On
-            if (noteOnBeat >= startTime && noteOnBeat < endTime)
+            if (absoluteNoteStart >= startTime && absoluteNoteStart < endTime)
             {
-                int samplePosition = static_cast<int>(((noteOnBeat - startTime) / blockDuration) * numSamples);
+                int samplePosition = static_cast<int>(((absoluteNoteStart - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     buffer.addEvent(applyEffects(note.message, 0), samplePosition);
@@ -150,9 +156,9 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
             }
 
             // Schedule Note Off
-            if (!isPadMode && noteOffBeat >= startTime && noteOffBeat < endTime)
+            if (!isPadMode && absoluteNoteEnd >= startTime && absoluteNoteEnd < endTime)
             {
-                int samplePosition = static_cast<int>(((noteOffBeat - startTime) / blockDuration) * numSamples);
+                int samplePosition = static_cast<int>(((absoluteNoteEnd - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
@@ -274,10 +280,10 @@ void Looper::setLoopPoints(double start, double end)
     loopEnd = end;
 }
 
-void Looper::startRecording(double maxDuration, bool isOverdub, double currentBeat)
+void Looper::startRecording(double maxDuration, bool isOverdub)
 {
     maxRecordLengthBeats_ = maxDuration;
-    recordingStartTime_ = currentBeat;
+    recordingStartTime_ = playbackHead_; // Assume playbackHead is current time
     setRecording(true);
     if (!isOverdub)
     {
@@ -290,7 +296,7 @@ void Looper::stopRecording()
     setRecording(false);
 }
 
-void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration)
+void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub)
 {
     if (!isOverdub)
     {
@@ -349,12 +355,23 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
 
     pristine_loop_ = recordedNotes; // Save a pristine copy
 
-    // If not overdubbing, set the loop length to the capture size.
-    // If overdubbing, the existing loop length is maintained.
-    if (!isOverdub)
+    // Update loop points based on content
+    if (!recordedNotes.empty())
+    {
+        double maxBeat = 0.0;
+        for (const auto& note : recordedNotes)
+        {
+            maxBeat = std::max(maxBeat, note.beatTime + note.durationInBeats);
+        }
+        loopStart = 0.0;
+        // Round up to the nearest bar
+        loopEnd = std::ceil(maxBeat / 4.0) * 4.0;
+        if (loopEnd == 0) loopEnd = 4.0; // Ensure at least one bar
+    }
+    else
     {
         loopStart = 0.0;
-        loopEnd = requestedDuration;
+        loopEnd = 4.0; // Default to 4 beats if empty
     }
 }
 

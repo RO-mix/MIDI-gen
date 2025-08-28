@@ -15,7 +15,7 @@ juce::Array<PendingNoteOff> RandomGeneratorV2::process(juce::MidiBuffer& midiMes
                                                        int numSamples)
 {
     juce::ignoreUnused(numSamples);
-    recentNotes.clear();
+    pimpl->recentNotes.clear();
 
     if (lastBeat_ < 0)
     {
@@ -167,7 +167,7 @@ void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProce
     auto noteOffMessage = juce::MidiMessage::noteOff(channel, noteNumber);
     midiMessages.addEvent(noteOffMessage, samplePos + durationInSamples);
 
-    recentNotes.push_back({noteNumber, velocity, beat, durationInBeats});
+    pimpl->recentNotes.push_back({noteNumber, velocity, beat, durationInBeats});
 }
 
 void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNotes)

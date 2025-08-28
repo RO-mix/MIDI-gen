@@ -782,11 +782,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
 //==============================================================================
 std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
 {
+    // This method is called by the UI thread to draw the timeline.
+    // It needs to be thread-safe.
     const std::lock_guard<std::mutex> lock(liveNotesMutex);
 
     if (looper_ && looper_->isPlaybackActive())
     {
-        // If looper is playing, convert its notes to LiveNote format for the UI
+        // If the looper is playing, its notes are the source of truth.
         std::vector<LiveNote> notes;
         const auto& looperNotes = looper_->getNotes();
         notes.reserve(looperNotes.size());
@@ -802,7 +804,7 @@ std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
         return notes;
     }
 
-    // Otherwise, return the notes from the generator
+    // Otherwise, if the generator is active, return the notes it has just generated.
     return liveNotes;
 }
 

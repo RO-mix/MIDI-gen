@@ -95,3 +95,5 @@ _deps
 *.log
 logs/
 .gitignore
+*.tlog
+*.exe

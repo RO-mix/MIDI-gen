@@ -8,11 +8,14 @@ DualEuclideanGenerator::DualEuclideanGenerator()
     updatePattern(patternB_, 15, 4);
 }
 
-void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
-                                   juce::AudioProcessorValueTreeState& apvts,
-                                   double sampleRate,
-                                   double currentBeat)
+juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
+                                                            juce::AudioProcessorValueTreeState& apvts,
+                                                            double sampleRate,
+                                                            double blockStartTime,
+                                                            double blockEndTime,
+                                                            int numSamples)
 {
+    juce::ignoreUnused(numSamples);
     // Fetch global parameters
     int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
     double bpm = apvts.getRawParameterValue("BPM")->load();
@@ -47,9 +50,10 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
     float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
     float rate = (rateChoice >= 0 && static_cast<size_t>(rateChoice) < std::size(rateMap)) ? rateMap[rateChoice] : 0.25f;
 
-    if (lastBeat_ < 0) lastBeat_ = currentBeat;
+    if (lastBeat_ < 0) lastBeat_ = blockStartTime;
+    double blockDurationBeats = blockEndTime - blockStartTime;
 
-    while (lastBeat_ < currentBeat)
+    while (lastBeat_ < blockEndTime)
     {
         if (random_.nextFloat() < noteProbability)
         {
@@ -62,10 +66,14 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                     int finalNoteA = getDeviatedNote(noteA, devA, bipolarA);
                     float durationInBeats = Duration::getBiasedDuration(durationBiasA, rate);
                     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
-                    int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
+                    double beatInBlock = lastBeat_ - blockStartTime;
+                    int samplePos = static_cast<int>((beatInBlock / blockDurationBeats) * numSamples);
                     if (samplePos < 0) samplePos = 0;
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteA, (juce::uint8)velocityA), samplePos);
-                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamples);
+                    if (samplePos < numSamples)
+                    {
+                        midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteA, (juce::uint8)velocityA), samplePos);
+                        midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamples);
+                    }
                 }
             }
 
@@ -78,15 +86,21 @@ void DualEuclideanGenerator::process(juce::MidiBuffer& midiMessages,
                     int finalNoteB = getDeviatedNote(noteB, devB, bipolarB);
                     float durationInBeats = Duration::getBiasedDuration(durationBiasB, rate);
                     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
-                    int samplePos = static_cast<int>(((lastBeat_ - currentBeat) * (60.0 / bpm)) * sampleRate);
+                    double beatInBlock = lastBeat_ - blockStartTime;
+                    int samplePos = static_cast<int>((beatInBlock / blockDurationBeats) * numSamples);
                     if (samplePos < 0) samplePos = 0;
-                    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
-                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
+                    if (samplePos < numSamples)
+                    {
+                        midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
+                        midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
+                    }
                 }
             }
         }
         lastBeat_ += rate;
     }
+    lastBeat_ = blockStartTime;
+    return {};
 }
 
 void DualEuclideanGenerator::updatePattern(std::vector<bool>& pattern, int steps, int pulses)

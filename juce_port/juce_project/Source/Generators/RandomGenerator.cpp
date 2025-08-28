@@ -9,11 +9,14 @@ RandomGenerator::RandomGenerator()
     randomEngine_.seed(rd());
 }
 
-void RandomGenerator::process(juce::MidiBuffer& midiMessages,
-                            juce::AudioProcessorValueTreeState& apvts,
-                            double sampleRate,
-                            double currentBeat)
+juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessages,
+                                                     juce::AudioProcessorValueTreeState& apvts,
+                                                     double sampleRate,
+                                                     double blockStartTime,
+                                                     double blockEndTime,
+                                                     int numSamples)
 {
+    juce::ignoreUnused(numSamples);
     // Fetch parameters from APVTS
     auto* minNoteParam = apvts.getRawParameterValue("RANDOM_MIN_NOTE");
     auto* maxNoteParam = apvts.getRawParameterValue("RANDOM_MAX_NOTE");
@@ -31,7 +34,7 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
         !noteProbabilityParam || !durationBiasParam || !rateParam || !addCC74Param || !channelParam || !bpmParam)
     {
         // One or more parameters not found, abort.
-        return;
+        return {};
     }
 
     int minNote = static_cast<int>(*minNoteParam);
@@ -49,11 +52,12 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
     float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
     float rate = (rateChoice >= 0 && rateChoice < std::size(rateMap)) ? rateMap[rateChoice] : 1.0f;
 
-    if (lastBeat_ < 0) lastBeat_ = currentBeat;
+    if (lastBeat_ < 0) lastBeat_ = blockStartTime;
 
     // Process events for the current block
+    double blockDurationBeats = blockEndTime - blockStartTime;
     int startSample = 0; // We process from the start of the block
-    while (lastBeat_ < currentBeat)
+    while (lastBeat_ < blockEndTime)
     {
         if (distribution_(randomEngine_) < noteProbability)
         {
@@ -82,7 +86,11 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
                     possibleNotes.push_back(noteNumber);
                     noteNumber += 12;
                 }
-                if(possibleNotes.empty()) continue; // No notes in range
+                if(possibleNotes.empty())
+                {
+                    lastBeat_ += rate;
+                    continue; // No notes in range
+                }
                 noteNumber = possibleNotes[randomEngine_() % possibleNotes.size()];
             }
 
@@ -91,21 +99,28 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
             int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
             // Calculate sample position for the note on event
-            int samplePos = static_cast<int>(((lastBeat_ - currentBeat) / (60.0 / bpm)) * sampleRate);
+            double beatInBlock = lastBeat_ - blockStartTime;
+            int samplePos = static_cast<int>((beatInBlock / blockDurationBeats) * numSamples);
             if (samplePos < 0) samplePos = startSample; // Ensure it's within the current block
 
-            midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
-
-            if (addCC74)
+            if (samplePos < numSamples)
             {
-                midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
+                midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+
+                if (addCC74)
+                {
+                    midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                }
             }
             }
         }
 
         lastBeat_ += rate;
     }
+    // Since we are processing a block, we need to ensure lastBeat_ doesn't fall behind.
+    lastBeat_ = blockStartTime;
+    return {};
 }
 
 void RandomGenerator::setScale(int rootNote, const std::vector<int>& scaleNotes)

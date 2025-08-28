@@ -466,40 +466,6 @@ juce::MidiBuffer Looper::splitLoop(bool keepFirstHalf)
     return noteOffsToSend;
 }
 
-void Looper::splitLoop(bool keepFirstHalf)
-{
-    const double currentDuration = loopEnd - loopStart;
-    const double midpoint = loopStart + currentDuration / 2.0;
-
-    if (keepFirstHalf)
-    {
-        recordedNotes.erase(
-            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
-                [&](const RecordedNote& note) {
-                    return note.beatTime >= midpoint;
-                }),
-            recordedNotes.end());
-        loopEnd = midpoint;
-    }
-    else // keep second half
-    {
-        recordedNotes.erase(
-            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
-                [&](const RecordedNote& note) {
-                    return note.beatTime < midpoint;
-                }),
-            recordedNotes.end());
-
-        // Shift remaining notes to the start of the loop
-        for (auto& note : recordedNotes)
-        {
-            note.beatTime -= midpoint;
-        }
-        loopEnd = midpoint;
-    }
-    pristine_loop_ = recordedNotes; // This becomes the new pristine state
-}
-
 void Looper::generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes)
 {
     if (pristine_loop_.empty() || scaleNotes.empty()) return;
@@ -563,38 +529,4 @@ void Looper::generateVariations(float bassIntensity, float midIntensity, float h
     }
 
     pristine_loop_ = recordedNotes; // The variation becomes the new pristine state
-}
-
-void Looper::splitLoop(bool keepFirstHalf)
-{
-    const double currentDuration = loopEnd - loopStart;
-    const double midpoint = loopStart + currentDuration / 2.0;
-
-    if (keepFirstHalf)
-    {
-        recordedNotes.erase(
-            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
-                [&](const RecordedNote& note) {
-                    return note.beatTime >= midpoint;
-                }),
-            recordedNotes.end());
-        loopEnd = midpoint;
-    }
-    else // keep second half
-    {
-        recordedNotes.erase(
-            std::remove_if(recordedNotes.begin(), recordedNotes.end(),
-                [&](const RecordedNote& note) {
-                    return note.beatTime < midpoint;
-                }),
-            recordedNotes.end());
-
-        // Shift remaining notes to the start of the loop
-        for (auto& note : recordedNotes)
-        {
-            note.beatTime -= midpoint;
-        }
-        loopEnd = midpoint;
-    }
-    pristine_loop_ = recordedNotes; // This becomes the new pristine state
 }

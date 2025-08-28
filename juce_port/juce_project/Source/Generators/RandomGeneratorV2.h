@@ -8,10 +8,12 @@ public:
     RandomGeneratorV2();
     ~RandomGeneratorV2() override = default;
 
-    void process(juce::MidiBuffer& midiMessages,
-                 juce::AudioProcessorValueTreeState& apvts,
-                 double sampleRate,
-                 double currentBeat) override;
+    juce::Array<PendingNoteOff> process(juce::MidiBuffer& midiMessages,
+                                        juce::AudioProcessorValueTreeState& apvts,
+                                        double sampleRate,
+                                        double blockStartTime,
+                                        double blockEndTime,
+                                        int numSamples) override;
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 
@@ -19,8 +21,8 @@ public:
     void reset() override;
 
 private:
-    void generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate);
-    void addNote(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat);
+    void generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double blockStartTime);
+    void addNote(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat, double blockStartTime);
 
     double lastBeat_ = -1.0;
     double nextEventBeat_ = 0.0;

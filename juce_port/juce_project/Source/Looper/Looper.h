@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include <set>
 
 enum class LooperMode
 {
@@ -23,7 +24,7 @@ public:
     // Основные методы управления
     void recordNote(const juce::MidiMessage& message, double beatTime);
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
-    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub);
+    void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration);
     void startPlayback();
     void stopPlayback();
     void clear();
@@ -39,8 +40,8 @@ public:
     void quantize(double gridInBeats);
     void unquantize();
     void generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes);
-    void doubleLoop();
-    void splitLoop(bool keepFirstHalf = true);
+    juce::MidiBuffer doubleLoop();
+    juce::MidiBuffer splitLoop(bool keepFirstHalf = true);
     void setLoopPoints(double start, double end);
     double getLoopStart() const { return loopStart; }
     double getLoopEnd() const { return loopEnd; }
@@ -71,7 +72,7 @@ public:
 
 
     // Управление записью/воспроизведением
-    void startRecording(double maxDuration, bool isOverdub);
+    void startRecording(double maxDuration, bool isOverdub, double currentBeat);
     void stopRecording();
     void setRecording(bool recording);
 
@@ -84,6 +85,7 @@ private:
     std::vector<RecordedNote> recordedNotes;
     std::vector<RecordedNote> pristine_loop_;
     std::vector<RecordedNote> pendingNotes; // For calculating duration
+    std::set<int> currentlyPlayingNotes;
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
     // Состояние

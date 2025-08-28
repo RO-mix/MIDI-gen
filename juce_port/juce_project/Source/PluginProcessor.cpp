@@ -177,7 +177,8 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     juce::MidiBuffer generatedMidi;
     if (activeGenerator != nullptr && isPlaying_ && !looper_->isPlaybackActive())
     {
-        activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat);
+        auto pendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, buffer.getNumSamples());
+        juce::ignoreUnused(pendingNotes);
     }
 
     if (looper_ && looper_->isRecordingActive())

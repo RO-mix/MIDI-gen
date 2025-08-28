@@ -9,6 +9,7 @@
 #include "Generators/RandomGeneratorV2.h"
 #include "Theory/Scales.h"
 #include <map>
+#include <mutex>
 
 //==============================================================================
 /**
@@ -102,7 +103,7 @@ public:
         double startTime; // in beats
         double duration;  // in beats
     };
-    const std::vector<LiveNote>& getLiveNotes() const { return liveNotes; }
+    std::vector<LiveNote> getLiveNotes() const;
     double getCurrentBeat() const { return currentBeat_; }
     double getLooperDurationInBeats() const;
 
@@ -126,6 +127,7 @@ private:
 
     std::unique_ptr<Looper> looper_;
     std::vector<LiveNote> liveNotes;
+    mutable std::mutex liveNotesMutex;
     double currentBeat_ = 0.0;
     double samplesPerBeat_ = 0.0;
     double sampleRate_ = 44100.0;

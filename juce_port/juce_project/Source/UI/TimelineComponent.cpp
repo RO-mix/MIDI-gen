@@ -62,7 +62,7 @@ void TimelineComponent::paint(juce::Graphics& g)
             }
         }
 
-        const auto& notes = audioProcessor.getLiveNotes();
+        const auto notes = audioProcessor.getLiveNotes();
 
         if (!notes.empty())
         {

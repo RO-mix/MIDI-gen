@@ -57,47 +57,50 @@ void RandomGenerator::process(juce::MidiBuffer& midiMessages,
     {
         if (distribution_(randomEngine_) < noteProbability)
         {
-            // Generate a note
-            int noteNumber;
-            if (scaleNotes_.empty())
+            if (minNote <= maxNote)
             {
-                // Chromatic
-                noteNumber = minNote + (randomEngine_() % (maxNote - minNote + 1));
-            }
-            else
-            {
-                // In scale
-                int noteIndex = randomEngine_() % scaleNotes_.size();
-                // Find a suitable octave
-                int baseNote = rootNote_ + scaleNotes_[noteIndex];
-                int octave = (minNote - baseNote) / 12;
-                noteNumber = baseNote + octave * 12;
-                while(noteNumber < minNote) noteNumber += 12;
-
-                std::vector<int> possibleNotes;
-                while(noteNumber <= maxNote)
+                // Generate a note
+                int noteNumber;
+                if (scaleNotes_.empty())
                 {
-                    possibleNotes.push_back(noteNumber);
-                    noteNumber += 12;
+                    // Chromatic
+                    noteNumber = minNote + (randomEngine_() % (maxNote - minNote + 1));
                 }
-                if(possibleNotes.empty()) continue; // No notes in range
-                noteNumber = possibleNotes[randomEngine_() % possibleNotes.size()];
-            }
+                else
+                {
+                    // In scale
+                    int noteIndex = randomEngine_() % scaleNotes_.size();
+                    // Find a suitable octave
+                    int baseNote = rootNote_ + scaleNotes_[noteIndex];
+                    int octave = (minNote - baseNote) / 12;
+                    noteNumber = baseNote + octave * 12;
+                    while(noteNumber < minNote) noteNumber += 12;
 
-            int velocity = calculateVelocity(velocityBias, maxVelocity);
-            float durationInBeats = Duration::getBiasedDuration(durationBias, rate);
-            int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
+                    std::vector<int> possibleNotes;
+                    while(noteNumber <= maxNote)
+                    {
+                        possibleNotes.push_back(noteNumber);
+                        noteNumber += 12;
+                    }
+                    if(possibleNotes.empty()) continue; // No notes in range
+                    noteNumber = possibleNotes[randomEngine_() % possibleNotes.size()];
+                }
 
-            // Calculate sample position for the note on event
-            int samplePos = static_cast<int>(((lastBeat_ - currentBeat) / (60.0 / bpm)) * sampleRate);
-            if (samplePos < 0) samplePos = startSample; // Ensure it's within the current block
+                int velocity = calculateVelocity(velocityBias, maxVelocity);
+                float durationInBeats = Duration::getBiasedDuration(durationBias, rate);
+                int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
 
-            midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+                // Calculate sample position for the note on event
+                int samplePos = static_cast<int>(((lastBeat_ - currentBeat) / (60.0 / bpm)) * sampleRate);
+                if (samplePos < 0) samplePos = startSample; // Ensure it's within the current block
 
-            if (addCC74)
-            {
-                midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
+                midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+
+                if (addCC74)
+                {
+                    midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                }
             }
         }
 
@@ -188,48 +191,51 @@ juce::MidiBuffer RandomGenerator::getPattern(double durationInBeats, juce::Audio
     {
         if (distribution_(randomEngine_) < noteProbability)
         {
-            int noteNumber;
-            if (scaleNotes_.empty())
+            if (minNote <= maxNote)
             {
-                noteNumber = minNote + (randomEngine_() % (maxNote - minNote + 1));
-            }
-            else
-            {
-                int noteIndex = randomEngine_() % scaleNotes_.size();
-                int baseNote = rootNote_ + scaleNotes_[noteIndex];
-                int octave = (minNote - baseNote) / 12;
-                noteNumber = baseNote + octave * 12;
-                while(noteNumber < minNote) noteNumber += 12;
-
-                std::vector<int> possibleNotes;
-                while(noteNumber <= maxNote)
+                int noteNumber;
+                if (scaleNotes_.empty())
                 {
-                    possibleNotes.push_back(noteNumber);
-                    noteNumber += 12;
-                }
-
-                if (!possibleNotes.empty())
-                {
-                    noteNumber = possibleNotes[randomEngine_() % possibleNotes.size()];
+                    noteNumber = minNote + (randomEngine_() % (maxNote - minNote + 1));
                 }
                 else
                 {
-                    currentBeat += rate;
-                    continue; // No notes in range, skip to next beat
+                    int noteIndex = randomEngine_() % scaleNotes_.size();
+                    int baseNote = rootNote_ + scaleNotes_[noteIndex];
+                    int octave = (minNote - baseNote) / 12;
+                    noteNumber = baseNote + octave * 12;
+                    while(noteNumber < minNote) noteNumber += 12;
+
+                    std::vector<int> possibleNotes;
+                    while(noteNumber <= maxNote)
+                    {
+                        possibleNotes.push_back(noteNumber);
+                        noteNumber += 12;
+                    }
+
+                    if (!possibleNotes.empty())
+                    {
+                        noteNumber = possibleNotes[randomEngine_() % possibleNotes.size()];
+                    }
+                    else
+                    {
+                        currentBeat += rate;
+                        continue; // No notes in range, skip to next beat
+                    }
                 }
-            }
 
-            int velocity = calculateVelocity(velocityBias, maxVelocity);
-            float duration = Duration::getBiasedDuration(durationBias, rate);
-            int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
-            int durationInSamples = static_cast<int>(duration * (60.0 / bpm) * sampleRate);
+                int velocity = calculateVelocity(velocityBias, maxVelocity);
+                float duration = Duration::getBiasedDuration(durationBias, rate);
+                int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
+                int durationInSamples = static_cast<int>(duration * (60.0 / bpm) * sampleRate);
 
-            pattern.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-            pattern.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+                pattern.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
+                pattern.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
 
-            if (addCC74)
-            {
-                pattern.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                if (addCC74)
+                {
+                    pattern.addEvent(juce::MidiMessage::controllerEvent(channel, 74, randomEngine_() % 128), samplePos);
+                }
             }
         }
         currentBeat += rate;

@@ -178,6 +178,57 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     if (activeGenerator != nullptr && isPlaying_ && !looper_->isPlaybackActive())
     {
         activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat);
+
+        std::lock_guard<std::mutex> lock(liveNotesMutex);
+
+        // Clean up old notes that are no longer visible
+        liveNotes.erase(std::remove_if(liveNotes.begin(), liveNotes.end(),
+                                       [this](const LiveNote& note) {
+                                           return note.startTime < this->currentBeat_ - 17.0;
+                                       }),
+                        liveNotes.end());
+
+        // Add new notes from the generator's output
+        for (const auto metadata : generatedMidi)
+        {
+            const auto msg = metadata.getMessage();
+            if (msg.isNoteOn())
+            {
+                double beat = lastBlockBeat + metadata.samplePosition * beatsPerSample;
+
+                // For visualization, we use a fixed duration based on the generator's rate.
+                auto* genTypeParam = apvts.getRawParameterValue("GENERATOR_TYPE");
+                int genType = genTypeParam ? static_cast<int>(genTypeParam->load()) : 0;
+                juce::String rateParamId;
+                switch(genType)
+                {
+                    case 0: rateParamId = "RANDOM_RATE"; break;
+                    case 1: rateParamId = "EUCLIDEAN_RATE"; break;
+                    case 2: rateParamId = "DUAL_EUCLIDEAN_RATE"; break;
+                    case 3: rateParamId = "RANDOM_V2_BASE_DURATION"; break; // This one is different
+                    default: rateParamId = "RANDOM_RATE"; break;
+                }
+
+                auto* rateParam = apvts.getRawParameterValue(rateParamId);
+                int rateChoice = rateParam ? static_cast<int>(rateParam->load()) : 4;
+                float rateMap[] = { 16.0f, 8.0f, 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f, 0.0625f };
+                float durationInBeats = (rateChoice >= 0 && rateChoice < std::size(rateMap)) ? rateMap[rateChoice] : 1.0f;
+
+                if (genType == 3) // Special handling for Random v2
+                {
+                    float durationMap[] = { 16.0f, 8.0f, 4.0f, 3.0f, 2.0f, 1.0f };
+                    durationInBeats = (rateChoice >= 0 && rateChoice < std::size(durationMap)) ? durationMap[rateChoice] : 4.0f;
+                }
+
+
+                liveNotes.push_back({
+                    msg.getNoteNumber(),
+                    msg.getVelocity(),
+                    beat,
+                    (double)durationInBeats
+                });
+            }
+        }
     }
 
     if (looper_ && looper_->isRecordingActive())
@@ -418,6 +469,12 @@ const std::vector<Looper::RecordedNote>& CreativeMidiGeneratorAudioProcessor::ge
 double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const
 {
     return looper_ ? looper_->getPlaybackProgress() : 0.0;
+}
+
+std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
+{
+    std::lock_guard<std::mutex> lock(liveNotesMutex);
+    return liveNotes;
 }
 
 

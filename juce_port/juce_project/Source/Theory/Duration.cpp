@@ -11,7 +11,7 @@ namespace Duration
         bias = std::max(0.0f, std::min(1.0f, bias));
 
         float longDuration = baseRate * 2.0f;
-        float shortDuration = baseRate / 2.0f;
+        float shortDuration = baseRate;
 
         static std::mt19937 gen(std::random_device{}());
         std::uniform_real_distribution<float> dist(0.0f, 1.0f);

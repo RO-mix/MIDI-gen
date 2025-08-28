@@ -26,8 +26,9 @@ void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 
     if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
     {
+        // Stop recording but do not automatically start playback from here.
+        // Playback should be initiated by the user, which will then be quantized.
         stopRecording();
-        startPlayback();
         return;
     }
 
@@ -152,8 +153,6 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     buffer.addEvent(applyEffects(note.message, 0), samplePosition);
-                    if (isPadMode)
-                        currentlyPlayingNotes.insert(note.message.getNoteNumber());
                 }
             }
 
@@ -165,28 +164,47 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 {
                     auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
                     buffer.addEvent(applyEffects(noteOffMessage, 0), samplePosition);
-                    if (isPadMode)
-                        currentlyPlayingNotes.erase(note.message.getNoteNumber());
                 }
             }
         }
     }
 
-    // PAD Mode: send note off for all playing notes at the end of the loop
+    // New PAD Mode Logic:
+    // Instead of holding note-off messages, this mode now simulates a sustain pedal (CC 64)
+    // being held for the duration of the loop. This allows all notes within the loop to sustain
+    // naturally and release together when the loop cycles.
     if (isPadMode)
     {
-        double nextLoopEnd = floor((startTime - loopStart) / loopDuration + 1) * loopDuration + loopStart;
-        if (nextLoopEnd >= startTime && nextLoopEnd < endTime)
+        // We need to check if the start or end of a loop cycle falls within the current buffer.
+        double loopCycleStart = floor((startTime - loopStart) / loopDuration) * loopDuration + loopStart;
+
+        while (loopCycleStart < endTime)
         {
-            int samplePosition = static_cast<int>(((nextLoopEnd - startTime) / blockDuration) * numSamples);
-            if (samplePosition >= 0 && samplePosition < numSamples)
+            double absoluteLoopStart = loopCycleStart;
+            double absoluteLoopEnd = loopCycleStart + loopDuration;
+
+            // If the loop start is in this block, send Sustain ON.
+            if (absoluteLoopStart >= startTime && absoluteLoopStart < endTime)
             {
-                for (int noteNumber : currentlyPlayingNotes)
+                int samplePosition = static_cast<int>(((absoluteLoopStart - startTime) / blockDuration) * numSamples);
+                if (samplePosition >= 0 && samplePosition < numSamples)
                 {
-                    buffer.addEvent(juce::MidiMessage::noteOff(1, noteNumber), samplePosition); // Assuming channel 1
+                    // Using CC 64 for Sustain Pedal, which is the MIDI standard.
+                    // The user mentioned CC 67, but that is for "Soft Pedal".
+                    buffer.addEvent(juce::MidiMessage::controllerEvent(1, 64, 127), samplePosition);
                 }
-                currentlyPlayingNotes.clear();
             }
+
+            // If the loop end is in this block, send Sustain OFF.
+            if (absoluteLoopEnd >= startTime && absoluteLoopEnd < endTime)
+            {
+                int samplePosition = static_cast<int>(((absoluteLoopEnd - startTime) / blockDuration) * numSamples);
+                if (samplePosition >= 0 && samplePosition < numSamples)
+                {
+                    buffer.addEvent(juce::MidiMessage::controllerEvent(1, 64, 0), samplePosition);
+                }
+            }
+            loopCycleStart += loopDuration;
         }
     }
 

@@ -38,7 +38,7 @@ juce::Array<PendingNoteOff> RandomGeneratorV2::process(juce::MidiBuffer& midiMes
         nextEventBeat_ += baseDuration;
     }
 
-    lastBeat_ = blockStartTime; // Update lastBeat for the next block
+    // lastBeat_ is now correctly preserved across blocks.
     return {};
 }
 

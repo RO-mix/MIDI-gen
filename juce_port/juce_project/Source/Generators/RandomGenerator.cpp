@@ -118,8 +118,7 @@ juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessa
 
         lastBeat_ += rate;
     }
-    // Since we are processing a block, we need to ensure lastBeat_ doesn't fall behind.
-    lastBeat_ = blockStartTime;
+    // lastBeat_ is now correctly preserved across blocks.
     return {};
 }
 

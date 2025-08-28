@@ -1,6 +1,5 @@
 #pragma once
 #include <JuceHeader.h>
-#include <set>
 
 enum class LooperMode
 {
@@ -85,7 +84,6 @@ private:
     std::vector<RecordedNote> recordedNotes;
     std::vector<RecordedNote> pristine_loop_;
     std::vector<RecordedNote> pendingNotes; // For calculating duration
-    std::set<int> currentlyPlayingNotes;
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
     // Состояние

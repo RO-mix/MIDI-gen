@@ -118,7 +118,7 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
 
         lastBeat_ += rate;
     }
-    lastBeat_ = blockStartTime;
+    // lastBeat_ is now correctly preserved across blocks.
     return {};
 }
 

@@ -75,6 +75,9 @@ public:
     }
 
 protected:
+    void clearRecentNotes();
+    void addRecentNote(const LiveNote& note);
+
     // Using the Pimpl idiom to hide implementation details (like std::vector)
     // from this header file, reducing compile times and dependencies.
     struct GeneratorState;

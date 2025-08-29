@@ -804,7 +804,8 @@ std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
         return notes;
     }
 
-    // Otherwise, if the generator is active, return the notes it has just generated.
+    // Otherwise, if the generator is active, return the notes that the audio thread
+    // has placed in the liveNotes cache.
     return liveNotes;
 }
 

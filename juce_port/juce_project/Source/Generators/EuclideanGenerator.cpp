@@ -15,7 +15,7 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
                                                         int numSamples)
 {
     juce::ignoreUnused(numSamples);
-    pimpl->recentNotes.clear();
+    clearRecentNotes();
 
     // Fetch parameters
     int steps = *apvts.getRawParameterValue("EUCLIDEAN_STEPS");
@@ -115,7 +115,7 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
             {
                 midiMessages.addEvent(juce::MidiMessage::noteOn(channel, generatedNote, (juce::uint8)velocity), samplePos);
                 midiMessages.addEvent(juce::MidiMessage::noteOff(channel, generatedNote), samplePos + durationInSamples);
-                pimpl->recentNotes.push_back({generatedNote, velocity, lastBeat_, durationInBeats});
+                addRecentNote({generatedNote, velocity, lastBeat_, durationInBeats});
             }
         }
 

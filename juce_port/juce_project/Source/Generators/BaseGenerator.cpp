@@ -28,3 +28,13 @@ const std::vector<LiveNote>& BaseGenerator::getRecentNotes() const
 {
     return pimpl->recentNotes;
 }
+
+void BaseGenerator::clearRecentNotes()
+{
+    pimpl->recentNotes.clear();
+}
+
+void BaseGenerator::addRecentNote(const LiveNote& note)
+{
+    pimpl->recentNotes.push_back(note);
+}

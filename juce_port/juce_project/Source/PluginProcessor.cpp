@@ -199,6 +199,22 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     {
         auto newPendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, numSamples, totalSamples_);
         pendingNoteOffs_.addArray(newPendingNotes);
+
+        const std::lock_guard<std::mutex> lock(liveNotesMutex);
+        liveNotes.clear();
+        for (const auto metadata : generatedMidi)
+        {
+            if (metadata.getMessage().isNoteOn())
+            {
+                double beatInBlock = metadata.samplePosition * beatsPerSample;
+                liveNotes.push_back({
+                    metadata.getMessage().getNoteNumber(),
+                    metadata.getMessage().getVelocity(),
+                    lastBlockBeat + beatInBlock,
+                    0.25 // Default duration for visualization
+                });
+            }
+        }
     }
 
     if (looper_ && looper_->isRecordingActive())

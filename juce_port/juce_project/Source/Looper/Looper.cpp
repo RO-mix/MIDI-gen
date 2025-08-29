@@ -80,9 +80,17 @@ void Looper::startPlayback()
     isRecording = false;
 }
 
-void Looper::stopPlayback()
+juce::MidiBuffer Looper::stopPlayback()
 {
+    juce::MidiBuffer noteOffs;
+    for (int noteNumber : currentlyPlayingNotes)
+    {
+        // Assuming channel 1 for now, this could be improved
+        noteOffs.addEvent(juce::MidiMessage::noteOff(1, noteNumber), 0);
+    }
+    currentlyPlayingNotes.clear();
     isPlaying = false;
+    return noteOffs;
 }
 
 void Looper::clear()
@@ -154,6 +162,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     buffer.addEvent(applyEffects(note.message, 0), samplePosition);
+                    currentlyPlayingNotes.insert(note.message.getNoteNumber());
                 }
             }
 
@@ -165,6 +174,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 {
                     auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
                     buffer.addEvent(applyEffects(noteOffMessage, 0), samplePosition);
+                    currentlyPlayingNotes.erase(note.message.getNoteNumber());
                 }
             }
         }

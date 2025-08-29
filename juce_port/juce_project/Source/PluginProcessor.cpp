@@ -300,7 +300,14 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    // 5. Increment total samples
+    // 5. Merge any immediate action buffers (e.g., from stopPlayback)
+    for (const auto& bufferToMerge : buffersToMerge_)
+    {
+        midiMessages.addEvents(bufferToMerge, 0, -1, 0);
+    }
+    buffersToMerge_.clear();
+
+    // 6. Increment total samples
     totalSamples_ += numSamples;
 }
 
@@ -607,11 +614,11 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
         case LooperAction::TogglePlay:
         {
             juce::Logger::writeToLog("ACTION: Executing TogglePlay.");
-            sendAllNotesOff = true;
             if (looper_->isPlaybackActive())
             {
                 juce::Logger::writeToLog("ACTION: Stopping looper playback.");
-                looper_->stopPlayback();
+                auto noteOffs = looper_->stopPlayback();
+                buffersToMerge_.add(noteOffs); // Add specific note-offs to a temporary buffer
             }
             else
             {

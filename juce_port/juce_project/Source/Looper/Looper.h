@@ -26,7 +26,7 @@ public:
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
     void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration);
     void startPlayback();
-    void stopPlayback();
+    juce::MidiBuffer stopPlayback();
     void clear();
 
     // Буфер воспроизведения

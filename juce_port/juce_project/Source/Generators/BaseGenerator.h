@@ -24,7 +24,8 @@ public:
                                                 double sampleRate,
                                                 double blockStartTime,
                                                 double blockEndTime,
-                                                int numSamples) = 0;
+                                                int numSamples,
+                                                juce::int64 totalSamples) = 0;
 
     /**
      * @brief Sets the musical scale for the generator.

@@ -12,9 +12,10 @@ juce::Array<PendingNoteOff> RandomGeneratorV2::process(juce::MidiBuffer& midiMes
                                                        double sampleRate,
                                                        double blockStartTime,
                                                        double blockEndTime,
-                                                       int numSamples)
+                                                       int numSamples,
+                                                       juce::int64 totalSamples)
 {
-    juce::ignoreUnused(numSamples);
+    juce::Array<PendingNoteOff> notesToTurnOff;
 
     if (lastBeat_ < 0)
     {
@@ -29,7 +30,7 @@ juce::Array<PendingNoteOff> RandomGeneratorV2::process(juce::MidiBuffer& midiMes
         if (nextEventBeat_ >= blockStartTime)
         {
             // This event should be generated in this block.
-            generateEventsAt(nextEventBeat_, midiMessages, apvts, sampleRate, blockStartTime);
+            generateEventsAt(notesToTurnOff, nextEventBeat_, midiMessages, apvts, sampleRate, blockStartTime, numSamples, totalSamples);
         }
 
         auto* baseDurationParam = apvts.getRawParameterValue("RANDOM_V2_BASE_DURATION");
@@ -40,10 +41,10 @@ juce::Array<PendingNoteOff> RandomGeneratorV2::process(juce::MidiBuffer& midiMes
     }
 
     // lastBeat_ is now correctly preserved across blocks.
-    return {};
+    return notesToTurnOff;
 }
 
-void RandomGeneratorV2::generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double blockStartTime)
+void RandomGeneratorV2::generateEventsAt(juce::Array<PendingNoteOff>& notesToTurnOff, double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double blockStartTime, int numSamples, juce::int64 totalSamples)
 {
     std::uniform_real_distribution<float> dist(0.0f, 1.0f);
     auto* burstProbParam = apvts.getRawParameterValue("RANDOM_V2_BURST_PROB");
@@ -65,18 +66,18 @@ void RandomGeneratorV2::generateEventsAt(double beat, juce::MidiBuffer& midiMess
             auto* patternParam = apvts.getRawParameterValue("RANDOM_V2_BURST_PATTERN_" + juce::String(i));
             if (patternParam && dist(randomEngine_) < patternParam->load())
             {
-                addNote(midiMessages, apvts, sampleRate, beat + (i * noteInterval), blockStartTime);
+                addNote(notesToTurnOff, midiMessages, apvts, sampleRate, beat + (i * noteInterval), blockStartTime, numSamples, totalSamples);
             }
         }
     }
     else if (dist(randomEngine_) < noteProbParam->load())
     {
-        addNote(midiMessages, apvts, sampleRate, beat, blockStartTime);
+        addNote(notesToTurnOff, midiMessages, apvts, sampleRate, beat, blockStartTime, numSamples, totalSamples);
     }
 }
 
 
-void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat, double blockStartTime)
+void RandomGeneratorV2::addNote(juce::Array<PendingNoteOff>& notesToTurnOff, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat, double blockStartTime, int numSamples, juce::int64 totalSamples)
 {
     auto* minNoteParam = apvts.getRawParameterValue("RANDOM_V2_MIN_NOTE");
     auto* maxNoteParam = apvts.getRawParameterValue("RANDOM_V2_MAX_NOTE");
@@ -158,13 +159,22 @@ void RandomGeneratorV2::addNote(juce::MidiBuffer& midiMessages, juce::AudioProce
     int velocity = static_cast<int>(randomEngine_() % 60) + 40; // 40-99
     double durationInBeats = 1.0; // Fixed duration for now
     int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
-    double beatsToSamples = (60.0 / bpm) * sampleRate;
-    int samplePos = static_cast<int>((beat - blockStartTime) * beatsToSamples);
+    double beatsPerSample = (60.0 / bpm);
+    double beatsInBlock = (beat - blockStartTime);
+    int samplePos = static_cast<int>(beatsInBlock * beatsPerSample * sampleRate);
 
-
-    midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-    auto noteOffMessage = juce::MidiMessage::noteOff(channel, noteNumber);
-    midiMessages.addEvent(noteOffMessage, samplePos + durationInSamples);
+    if (samplePos >= 0 && samplePos < numSamples)
+    {
+        midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
+        if (samplePos + durationInSamples < numSamples)
+        {
+            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+        }
+        else
+        {
+            notesToTurnOff.add({ noteNumber, channel, totalSamples + samplePos + durationInSamples });
+        }
+    }
 }
 
 void RandomGeneratorV2::setScale(int rootNote, const std::vector<int>& scaleNotes)

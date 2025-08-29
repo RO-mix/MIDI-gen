@@ -12,10 +12,10 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
                                                         double sampleRate,
                                                         double blockStartTime,
                                                         double blockEndTime,
-                                                        int numSamples)
+                                                        int numSamples,
+                                                        juce::int64 totalSamples)
 {
-    juce::ignoreUnused(numSamples);
-
+    juce::Array<PendingNoteOff> notesToTurnOff;
     // Fetch parameters
     int steps = *apvts.getRawParameterValue("EUCLIDEAN_STEPS");
     int pulses = *apvts.getRawParameterValue("EUCLIDEAN_PULSES");
@@ -113,14 +113,21 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
             if (samplePos < numSamples)
             {
                 midiMessages.addEvent(juce::MidiMessage::noteOn(channel, generatedNote, (juce::uint8)velocity), samplePos);
-                midiMessages.addEvent(juce::MidiMessage::noteOff(channel, generatedNote), samplePos + durationInSamples);
+                if (samplePos + durationInSamples < numSamples)
+                {
+                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, generatedNote), samplePos + durationInSamples);
+                }
+                else
+                {
+                    notesToTurnOff.add({ generatedNote, channel, totalSamples + samplePos + durationInSamples });
+                }
             }
         }
 
         lastBeat_ += rate;
     }
     // lastBeat_ is now correctly preserved across blocks.
-    return {};
+    return notesToTurnOff;
 }
 
 void EuclideanGenerator::updatePattern(int steps, int pulses)

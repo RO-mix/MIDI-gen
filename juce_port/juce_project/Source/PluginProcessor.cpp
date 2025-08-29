@@ -147,8 +147,22 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     }
 
     buffer.clear();
+    midiMessages.clear();
 
     const int numSamples = buffer.getNumSamples();
+
+    // 1. Process pending note-offs from previous blocks
+    for (int i = pendingNoteOffs_.size(); --i >= 0;)
+    {
+        auto& noteOff = pendingNoteOffs_.getReference(i);
+        if (noteOff.sampleOffTime < totalSamples_ + numSamples)
+        {
+            int samplePos = (int)(noteOff.sampleOffTime - totalSamples_);
+            midiMessages.addEvent(juce::MidiMessage::noteOff(noteOff.channel, noteOff.noteNumber), samplePos);
+            pendingNoteOffs_.remove(i);
+        }
+    }
+
     currentBpm_ = getCurrentBpm();
     samplesPerBeat_ = sampleRate_ * 60.0 / currentBpm_;
     const double beatsPerSample = 1.0 / samplesPerBeat_;
@@ -183,8 +197,8 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     }
     else if (activeGenerator != nullptr && isPlaying_)
     {
-        auto pendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, numSamples);
-        juce::ignoreUnused(pendingNotes);
+        auto newPendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, numSamples, totalSamples_);
+        pendingNoteOffs_.addArray(newPendingNotes);
     }
 
     if (looper_ && looper_->isRecordingActive())
@@ -204,24 +218,7 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    midiMessages.clear();
-
-    if (sendAllNotesOff)
-    {
-        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
-        midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
-        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 1);
-        sendAllNotesOff = false;
-        return;
-    }
-
-    if (sendSustainOff_.load())
-    {
-        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
-        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 0);
-        sendSustainOff_ = false;
-    }
-
+    // Combine buffers
     if (looper_ && looper_->isPlaybackActive())
     {
         midiMessages.addEvents(looperPlaybackMidi, 0, -1, 0);
@@ -234,6 +231,22 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     if (thruMessages.getNumEvents() > 0)
     {
         midiMessages.addEvents(thruMessages, 0, -1, 0);
+    }
+
+    if (sendAllNotesOff)
+    {
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.addEvent(juce::MidiMessage::allNotesOff(channel), 0);
+        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 1);
+        sendAllNotesOff = false;
+        pendingNoteOffs_.clear();
+    }
+
+    if (sendSustainOff_.load())
+    {
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        midiMessages.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), 0);
+        sendSustainOff_ = false;
     }
 
     if (looper_ && looper_->isPlaybackActive() && autoRecapturePeriod_ > 0)
@@ -254,6 +267,9 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
             lastLoopPosition_ = currentLoopPos;
         }
     }
+
+    // 5. Increment total samples
+    totalSamples_ += numSamples;
 }
 
 double CreativeMidiGeneratorAudioProcessor::getCurrentBpm() const
@@ -484,6 +500,7 @@ void CreativeMidiGeneratorAudioProcessor::togglePlayback()
         // If we just stopped playback, send an all-notes-off message
         // to ensure no generator notes are left hanging.
         sendAllNotesOff = true;
+        pendingNoteOffs_.clear();
     }
 
     listeners_.call([&](Listener& l) { l.playbackStateChanged(isPlaying_); });
@@ -527,6 +544,7 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
     sendAllNotesOff = true;
+    pendingNoteOffs_.clear();
     if (activeGenerator)
     {
         activeGenerator->reset();

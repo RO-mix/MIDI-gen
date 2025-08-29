@@ -13,10 +13,10 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
                                                             double sampleRate,
                                                             double blockStartTime,
                                                             double blockEndTime,
-                                                            int numSamples)
+                                                            int numSamples,
+                                                            juce::int64 totalSamples)
 {
-    juce::ignoreUnused(numSamples);
-
+    juce::Array<PendingNoteOff> notesToTurnOff;
     // Fetch global parameters
     int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
     double bpm = apvts.getRawParameterValue("BPM")->load();
@@ -73,7 +73,14 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
                     if (samplePos < numSamples)
                     {
                         midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteA, (juce::uint8)velocityA), samplePos);
-                        midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamples);
+                        if (samplePos + durationInSamples < numSamples)
+                        {
+                            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteA), samplePos + durationInSamples);
+                        }
+                        else
+                        {
+                            notesToTurnOff.add({ finalNoteA, channel, totalSamples + samplePos + durationInSamples });
+                        }
                     }
                 }
             }
@@ -93,7 +100,14 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
                     if (samplePos < numSamples)
                     {
                         midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
-                        midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
+                        if (samplePos + durationInSamples < numSamples)
+                        {
+                            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
+                        }
+                        else
+                        {
+                            notesToTurnOff.add({ finalNoteB, channel, totalSamples + samplePos + durationInSamples });
+                        }
                     }
                 }
             }
@@ -101,7 +115,7 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
         lastBeat_ += rate;
     }
     // lastBeat_ is now correctly preserved across blocks.
-    return {};
+    return notesToTurnOff;
 }
 
 void DualEuclideanGenerator::updatePattern(std::vector<bool>& pattern, int steps, int pulses)

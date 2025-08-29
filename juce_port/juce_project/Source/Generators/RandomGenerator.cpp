@@ -14,10 +14,10 @@ juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessa
                                                      double sampleRate,
                                                      double blockStartTime,
                                                      double blockEndTime,
-                                                     int numSamples)
+                                                     int numSamples,
+                                                     juce::int64 totalSamples)
 {
-    juce::ignoreUnused(numSamples);
-
+    juce::Array<PendingNoteOff> notesToTurnOff;
     // Fetch parameters from APVTS
     auto* minNoteParam = apvts.getRawParameterValue("RANDOM_MIN_NOTE");
     auto* maxNoteParam = apvts.getRawParameterValue("RANDOM_MAX_NOTE");
@@ -107,7 +107,14 @@ juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessa
             if (samplePos < numSamples)
             {
                 midiMessages.addEvent(juce::MidiMessage::noteOn(channel, noteNumber, (juce::uint8)velocity), samplePos);
-                midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+                if (samplePos + durationInSamples < numSamples)
+                {
+                    midiMessages.addEvent(juce::MidiMessage::noteOff(channel, noteNumber), samplePos + durationInSamples);
+                }
+                else
+                {
+                    notesToTurnOff.add({ noteNumber, channel, totalSamples + samplePos + durationInSamples });
+                }
 
                 if (addCC74)
                 {
@@ -120,7 +127,7 @@ juce::Array<PendingNoteOff> RandomGenerator::process(juce::MidiBuffer& midiMessa
         lastBeat_ += rate;
     }
     // lastBeat_ is now correctly preserved across blocks.
-    return {};
+    return notesToTurnOff;
 }
 
 void RandomGenerator::setScale(int rootNote, const std::vector<int>& scaleNotes)

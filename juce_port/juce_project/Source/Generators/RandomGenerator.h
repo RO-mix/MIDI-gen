@@ -13,7 +13,8 @@ public:
                                         double sampleRate,
                                         double blockStartTime,
                                         double blockEndTime,
-                                        int numSamples) override;
+                                        int numSamples,
+                                        juce::int64 totalSamples) override;
 
     void setScale(int rootNote, const std::vector<int>& scaleNotes) override;
 

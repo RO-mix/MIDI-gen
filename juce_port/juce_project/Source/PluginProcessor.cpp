@@ -179,15 +179,6 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    if (looper_ && looper_->isRecordingActive() && !isStopRecActionScheduled_)
-    {
-        if (looper_->isRecordingTimeExceeded(currentBeat_))
-        {
-            scheduleLooperAction(LooperAction::ToggleRecord);
-            isStopRecActionScheduled_ = true;
-        }
-    }
-
     if (pendingLooperAction != LooperAction::None)
     {
         if (currentBeat_ >= looperActionTriggerTime_ && lastBlockBeat < looperActionTriggerTime_)
@@ -199,7 +190,6 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     juce::MidiBuffer generatedMidi;
     juce::MidiBuffer looperPlaybackMidi;
 
-    // --- Generate MIDI from sources ---
     if (activeGenerator != nullptr && isPlaying_)
     {
         auto newPendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, numSamples, totalSamples_);
@@ -225,37 +215,32 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     if (looper_ && looper_->isPlaybackActive())
     {
         bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
-        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
-        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, lastBlockBeat, currentBeat_, isPadMode, channel);
+        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, lastBlockBeat, currentBeat_, isPadMode);
     }
 
-    // --- Record MIDI if necessary ---
     if (looper_ && looper_->isRecordingActive())
     {
-        // When recording, we want to capture the final mix of MIDI that the user is hearing.
-        // So, we create a temporary buffer of what will be played, and record that.
-        juce::MidiBuffer finalMidiForRecording;
-        finalMidiForRecording.addEvents(looperPlaybackMidi, 0, -1, 0);
-        finalMidiForRecording.addEvents(generatedMidi, 0, -1, 0);
-        finalMidiForRecording.addEvents(thruMessages, 0, -1, 0);
-
-        for (const auto metadata : finalMidiForRecording)
+        for (const auto metadata : midiMessages)
             looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
+
+        if (looper_->isPlaybackActive())
+        {
+            for (const auto metadata : looperPlaybackMidi)
+                looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
+        }
+        else if (isPlaying_)
+        {
+            for (const auto metadata : generatedMidi)
+                looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
+        }
     }
 
-    // --- Combine buffers for final output ---
     if (looper_ && looper_->isPlaybackActive())
     {
         midiMessages.addEvents(looperPlaybackMidi, 0, -1, 0);
-        // If THROUGH is on, we also add the live generator output.
-        if (apvts.getRawParameterValue("LOOPER_THROUGH")->load())
-        {
-            midiMessages.addEvents(generatedMidi, 0, -1, 0);
-        }
     }
     else
     {
-        // If looper isn't playing, just send the generator's output.
         midiMessages.addEvents(generatedMidi, 0, -1, 0);
     }
 
@@ -299,14 +284,6 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    // 5. Merge any immediate action buffers (e.g., from stopPlayback)
-    for (const auto& bufferToMerge : buffersToMerge_)
-    {
-        midiMessages.addEvents(bufferToMerge, 0, -1, 0);
-    }
-    buffersToMerge_.clear();
-
-    // 6. Increment total samples
     totalSamples_ += numSamples;
 }
 
@@ -538,7 +515,6 @@ void CreativeMidiGeneratorAudioProcessor::togglePlayback()
         // If we just stopped playback, send an all-notes-off message
         // to ensure no generator notes are left hanging.
         sendAllNotesOff = true;
-        pendingNoteOffs_.clear();
     }
 
     listeners_.call([&](Listener& l) { l.playbackStateChanged(isPlaying_); });
@@ -582,7 +558,6 @@ void CreativeMidiGeneratorAudioProcessor::parameterChanged(const juce::String& p
 void CreativeMidiGeneratorAudioProcessor::updateActiveGenerator()
 {
     sendAllNotesOff = true;
-    pendingNoteOffs_.clear();
     if (activeGenerator)
     {
         activeGenerator->reset();
@@ -613,11 +588,11 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
         case LooperAction::TogglePlay:
         {
             juce::Logger::writeToLog("ACTION: Executing TogglePlay.");
+            sendAllNotesOff = true;
             if (looper_->isPlaybackActive())
             {
                 juce::Logger::writeToLog("ACTION: Stopping looper playback.");
-                auto noteOffs = looper_->stopPlayback();
-                buffersToMerge_.add(noteOffs); // Add specific note-offs to a temporary buffer
+                looper_->stopPlayback();
             }
             else
             {
@@ -649,9 +624,8 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                         looper_->stopPlayback();
                     }
                     // This will kill any hanging notes from the generator or the previous loop.
-                    // sendAllNotesOff = true; // This was too aggressive and killed THROUGH notes.
+                    sendAllNotesOff = true;
                     looper_->clear();
-                    pendingNoteOffs_.clear(); // A more targeted way to kill generator notes.
                 }
 
                 auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
@@ -666,7 +640,6 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
 
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
                 looper_->startRecording(recordLengthInBeats, isOverdub, currentBeat_);
-                isStopRecActionScheduled_ = false; // Reset the flag
                 listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
             }
             break;

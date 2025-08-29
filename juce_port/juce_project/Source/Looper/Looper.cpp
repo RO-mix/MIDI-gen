@@ -24,12 +24,13 @@ void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 
     // juce::Logger::writeToLog("Looper::recordNote: Received " + message.getDescription() + " at beat " + juce::String(beatTime));
 
-    // The processor is now responsible for stopping the recording at the correct time.
-    // if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
-    // {
-    //     stopRecording();
-    //     return;
-    // }
+    if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
+    {
+        // Stop recording but do not automatically start playback from here.
+        // Playback should be initiated by the user, which will then be quantized.
+        stopRecording();
+        return;
+    }
 
     if (message.isNoteOn())
     {
@@ -80,17 +81,9 @@ void Looper::startPlayback()
     isRecording = false;
 }
 
-juce::MidiBuffer Looper::stopPlayback()
+void Looper::stopPlayback()
 {
-    juce::MidiBuffer noteOffs;
-    for (int noteNumber : currentlyPlayingNotes)
-    {
-        // Assuming channel 1 for now, this could be improved
-        noteOffs.addEvent(juce::MidiMessage::noteOff(1, noteNumber), 0);
-    }
-    currentlyPlayingNotes.clear();
     isPlaying = false;
-    return noteOffs;
 }
 
 void Looper::clear()
@@ -103,7 +96,7 @@ void Looper::clear()
     generationBuffer.clear();
 }
 
-juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel)
+juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
 {
     if (!isPlaying)
         return juce::MidiBuffer();
@@ -111,7 +104,7 @@ juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, dou
     switch (currentMode)
     {
         case LooperMode::MidiLooper:
-            return processMidiLooperBuffer(numSamples, startTime, endTime, isPadMode, channel);
+            return processMidiLooperBuffer(numSamples, startTime, endTime, isPadMode);
         case LooperMode::GenerationLooper:
             return processGenerationLooperBuffer(numSamples, startTime, endTime);
         default:
@@ -126,7 +119,7 @@ void Looper::setMode(LooperMode mode)
     clear();
 }
 
-juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel)
+juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
 {
     playbackHead_ = startTime;
     juce::MidiBuffer buffer;
@@ -162,7 +155,6 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
                     buffer.addEvent(applyEffects(note.message, 0), samplePosition);
-                    currentlyPlayingNotes.insert(note.message.getNoteNumber());
                 }
             }
 
@@ -174,7 +166,6 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 {
                     auto noteOffMessage = juce::MidiMessage::noteOff(note.message.getChannel(), note.message.getNoteNumber());
                     buffer.addEvent(applyEffects(noteOffMessage, 0), samplePosition);
-                    currentlyPlayingNotes.erase(note.message.getNoteNumber());
                 }
             }
         }
@@ -202,7 +193,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 {
                     // Using CC 64 for Sustain Pedal, which is the MIDI standard.
                     // The user mentioned CC 67, but that is for "Soft Pedal".
-                    buffer.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 127), samplePosition);
+                    buffer.addEvent(juce::MidiMessage::controllerEvent(1, 64, 127), samplePosition);
                 }
             }
 
@@ -212,7 +203,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 int samplePosition = static_cast<int>(((absoluteLoopEnd - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
-                    buffer.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), samplePosition);
+                    buffer.addEvent(juce::MidiMessage::controllerEvent(1, 64, 0), samplePosition);
                 }
             }
             loopCycleStart += loopDuration;
@@ -496,13 +487,6 @@ juce::MidiBuffer Looper::splitLoop(bool keepFirstHalf)
     recordedNotes = notesToKeep;
     pristine_loop_ = recordedNotes;
     return noteOffsToSend;
-}
-
-bool Looper::isRecordingTimeExceeded(double currentBeat) const
-{
-    if (!isRecording)
-        return false;
-    return currentBeat - recordingStartTime_ >= maxRecordLengthBeats_;
 }
 
 void Looper::generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes)

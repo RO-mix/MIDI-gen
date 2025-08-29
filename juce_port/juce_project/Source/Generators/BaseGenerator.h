@@ -1,21 +1,11 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PendingNoteOff.h"
-#include <memory> // For std::unique_ptr
-
-// Forward-declare the structs to avoid including their headers here.
-// This reduces dependencies and compile times.
-struct LiveNote;
-namespace std { template <typename T> class vector; }
-
 
 class BaseGenerator
 {
 public:
-    BaseGenerator();
-    virtual ~BaseGenerator(); // Destructor must be defined in .cpp for pimpl
-
-    const std::vector<LiveNote>& getRecentNotes() const;
+    virtual ~BaseGenerator() = default;
 
     /**
      * @brief Processes a block of audio and generates MIDI messages.
@@ -73,13 +63,4 @@ public:
     {
         // Default implementation does nothing.
     }
-
-protected:
-    void clearRecentNotes();
-    void addRecentNote(const LiveNote& note);
-
-    // Using the Pimpl idiom to hide implementation details (like std::vector)
-    // from this header file, reducing compile times and dependencies.
-    struct GeneratorState;
-    std::unique_ptr<GeneratorState> pimpl;
 };

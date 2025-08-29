@@ -94,12 +94,16 @@ public:
     void setLooperPitchShift(int semitones);
     int getLooperPitchShift() const;
 
-#include "LiveNote.h"
-
     // Getters for Timeline UI
     const std::vector<Looper::RecordedNote>& getLooperNotes() const;
     double getLooperPlaybackProgress() const;
 
+    struct LiveNote {
+        int noteNumber;
+        int velocity;
+        double startTime; // in beats
+        double duration;  // in beats
+    };
     std::vector<LiveNote> getLiveNotes() const;
     double getCurrentBeat() const { return currentBeat_; }
     double getLooperDurationInBeats() const;
@@ -123,7 +127,6 @@ private:
     BaseGenerator* activeGenerator = nullptr;
 
     std::unique_ptr<Looper> looper_;
-    std::vector<LiveNote> liveNotes;
     mutable std::mutex liveNotesMutex;
     double currentBeat_ = 0.0;
     double samplesPerBeat_ = 0.0;

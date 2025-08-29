@@ -103,7 +103,7 @@ void Looper::clear()
     generationBuffer.clear();
 }
 
-juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
+juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel)
 {
     if (!isPlaying)
         return juce::MidiBuffer();
@@ -111,7 +111,7 @@ juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, dou
     switch (currentMode)
     {
         case LooperMode::MidiLooper:
-            return processMidiLooperBuffer(numSamples, startTime, endTime, isPadMode);
+            return processMidiLooperBuffer(numSamples, startTime, endTime, isPadMode, channel);
         case LooperMode::GenerationLooper:
             return processGenerationLooperBuffer(numSamples, startTime, endTime);
         default:
@@ -126,7 +126,7 @@ void Looper::setMode(LooperMode mode)
     clear();
 }
 
-juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode)
+juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel)
 {
     playbackHead_ = startTime;
     juce::MidiBuffer buffer;
@@ -202,7 +202,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 {
                     // Using CC 64 for Sustain Pedal, which is the MIDI standard.
                     // The user mentioned CC 67, but that is for "Soft Pedal".
-                    buffer.addEvent(juce::MidiMessage::controllerEvent(1, 64, 127), samplePosition);
+                    buffer.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 127), samplePosition);
                 }
             }
 
@@ -212,7 +212,7 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
                 int samplePosition = static_cast<int>(((absoluteLoopEnd - startTime) / blockDuration) * numSamples);
                 if (samplePosition >= 0 && samplePosition < numSamples)
                 {
-                    buffer.addEvent(juce::MidiMessage::controllerEvent(1, 64, 0), samplePosition);
+                    buffer.addEvent(juce::MidiMessage::controllerEvent(channel, 64, 0), samplePosition);
                 }
             }
             loopCycleStart += loopDuration;

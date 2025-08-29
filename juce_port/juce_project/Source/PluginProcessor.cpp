@@ -196,8 +196,8 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    // juce::MidiBuffer generatedMidi; // Already declared
-    // juce::MidiBuffer looperPlaybackMidi; // Already declared
+    juce::MidiBuffer generatedMidi;
+    juce::MidiBuffer looperPlaybackMidi;
 
     // --- Generate MIDI from sources ---
     if (activeGenerator != nullptr && isPlaying_)
@@ -222,11 +222,11 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    juce::MidiBuffer looperPlaybackMidi;
     if (looper_ && looper_->isPlaybackActive())
     {
         bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
-        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, lastBlockBeat, currentBeat_, isPadMode);
+        int channel = static_cast<int>(apvts.getRawParameterValue("MIDI_CHANNEL")->load());
+        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, lastBlockBeat, currentBeat_, isPadMode, channel);
     }
 
     // --- Record MIDI if necessary ---

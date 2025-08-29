@@ -30,7 +30,7 @@ public:
     void clear();
 
     // Буфер воспроизведения
-    juce::MidiBuffer getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode);
+    juce::MidiBuffer getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel);
 
     // Управление режимом
     void setMode(LooperMode mode);
@@ -107,7 +107,7 @@ private:
     bool reverse = false;
 
     // Внутренние методы
-    juce::MidiBuffer processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode);
+    juce::MidiBuffer processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel);
     juce::MidiBuffer processGenerationLooperBuffer(int numSamples, double startTime, double endTime);
     juce::MidiMessage applyEffects(const juce::MidiMessage& message, double timeOffset);
 };

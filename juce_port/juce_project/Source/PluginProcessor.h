@@ -179,4 +179,5 @@ private:
 
     bool isGeneratorSwitchPending_ = false;
     int pendingGeneratorChoice_ = 0;
+    bool isStopRecActionScheduled_ = false;
 };

@@ -63,6 +63,7 @@ public:
     // Геттеры состояния
     bool isRecordingActive() const { return isRecording; }
     bool isPlaybackActive() const { return isPlaying; }
+    bool isRecordingTimeExceeded(double currentBeat) const;
     size_t getRecordedNotesCount() const { return recordedNotes.size(); }
 
     // Getters for UI

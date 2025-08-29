@@ -179,6 +179,15 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
+    if (looper_ && looper_->isRecordingActive() && !isStopRecActionScheduled_)
+    {
+        if (looper_->isRecordingTimeExceeded(currentBeat_))
+        {
+            scheduleLooperAction(LooperAction::ToggleRecord);
+            isStopRecActionScheduled_ = true;
+        }
+    }
+
     if (pendingLooperAction != LooperAction::None)
     {
         if (currentBeat_ >= looperActionTriggerTime_ && lastBlockBeat < looperActionTriggerTime_)
@@ -627,8 +636,9 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                         looper_->stopPlayback();
                     }
                     // This will kill any hanging notes from the generator or the previous loop.
-                    sendAllNotesOff = true;
+                    // sendAllNotesOff = true; // This was too aggressive and killed THROUGH notes.
                     looper_->clear();
+                    pendingNoteOffs_.clear(); // A more targeted way to kill generator notes.
                 }
 
                 auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
@@ -643,6 +653,7 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
 
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
                 looper_->startRecording(recordLengthInBeats, isOverdub, currentBeat_);
+                isStopRecActionScheduled_ = false; // Reset the flag
                 listeners_.call([&](Listener& l) { l.looperStateChanged(looper_->isPlaybackActive()); });
             }
             break;

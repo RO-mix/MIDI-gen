@@ -24,13 +24,12 @@ void Looper::recordNote(const juce::MidiMessage& message, double beatTime)
 
     // juce::Logger::writeToLog("Looper::recordNote: Received " + message.getDescription() + " at beat " + juce::String(beatTime));
 
-    if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
-    {
-        // Stop recording but do not automatically start playback from here.
-        // Playback should be initiated by the user, which will then be quantized.
-        stopRecording();
-        return;
-    }
+    // The processor is now responsible for stopping the recording at the correct time.
+    // if (beatTime - recordingStartTime_ >= maxRecordLengthBeats_)
+    // {
+    //     stopRecording();
+    //     return;
+    // }
 
     if (message.isNoteOn())
     {
@@ -487,6 +486,13 @@ juce::MidiBuffer Looper::splitLoop(bool keepFirstHalf)
     recordedNotes = notesToKeep;
     pristine_loop_ = recordedNotes;
     return noteOffsToSend;
+}
+
+bool Looper::isRecordingTimeExceeded(double currentBeat) const
+{
+    if (!isRecording)
+        return false;
+    return currentBeat - recordingStartTime_ >= maxRecordLengthBeats_;
 }
 
 void Looper::generateVariations(float bassIntensity, float midIntensity, float highIntensity, int rootNote, const std::vector<int>& scaleNotes)

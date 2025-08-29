@@ -196,11 +196,10 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    juce::MidiBuffer generatedMidi;
-    juce::MidiBuffer looperPlaybackMidi;
+    // juce::MidiBuffer generatedMidi; // Already declared
+    // juce::MidiBuffer looperPlaybackMidi; // Already declared
 
     // --- Generate MIDI from sources ---
-    juce::MidiBuffer generatedMidi;
     if (activeGenerator != nullptr && isPlaying_)
     {
         auto newPendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, numSamples, totalSamples_);

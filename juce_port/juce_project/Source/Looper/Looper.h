@@ -26,11 +26,11 @@ public:
     void recordMidiBuffer(const juce::MidiBuffer& buffer, double startTime);
     void loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration);
     void startPlayback();
-    void stopPlayback();
+    juce::MidiBuffer stopPlayback();
     void clear();
 
     // Буфер воспроизведения
-    juce::MidiBuffer getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode);
+    juce::MidiBuffer getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel);
 
     // Управление режимом
     void setMode(LooperMode mode);
@@ -63,6 +63,7 @@ public:
     // Геттеры состояния
     bool isRecordingActive() const { return isRecording; }
     bool isPlaybackActive() const { return isPlaying; }
+    bool isRecordingTimeExceeded(double currentBeat) const;
     size_t getRecordedNotesCount() const { return recordedNotes.size(); }
 
     // Getters for UI
@@ -106,7 +107,7 @@ private:
     bool reverse = false;
 
     // Внутренние методы
-    juce::MidiBuffer processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode);
+    juce::MidiBuffer processMidiLooperBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel);
     juce::MidiBuffer processGenerationLooperBuffer(int numSamples, double startTime, double endTime);
     juce::MidiMessage applyEffects(const juce::MidiMessage& message, double timeOffset);
 };

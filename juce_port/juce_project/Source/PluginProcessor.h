@@ -128,7 +128,6 @@ private:
 
     std::unique_ptr<Looper> looper_;
     mutable std::mutex liveNotesMutex;
-    std::vector<LiveNote> liveNotes;
     double currentBeat_ = 0.0;
     double samplesPerBeat_ = 0.0;
     double sampleRate_ = 44100.0;
@@ -179,4 +178,5 @@ private:
 
     bool isGeneratorSwitchPending_ = false;
     int pendingGeneratorChoice_ = 0;
+    bool isStopRecActionScheduled_ = false;
 };

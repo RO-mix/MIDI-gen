@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include <set>
 
 enum class LooperMode
 {
@@ -87,6 +88,7 @@ private:
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
     // Состояние
+    std::set<int> currentlyPlayingNotes;
     bool isRecording = false;
     bool isPlaying = false;
     double playbackHead_ = 0.0;

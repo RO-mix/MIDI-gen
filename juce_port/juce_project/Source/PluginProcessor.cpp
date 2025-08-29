@@ -747,7 +747,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
 }
 
 //==============================================================================
-std::vector<LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
+std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGeneratorAudioProcessor::getLiveNotes() const
 {
     const std::lock_guard<std::mutex> lock(liveNotesMutex);
 

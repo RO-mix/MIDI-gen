@@ -22,8 +22,8 @@ public:
     void reset() override;
 
 private:
-    void generateEventsAt(double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double blockStartTime);
-    void addNote(juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat, double blockStartTime);
+    void generateEventsAt(juce::Array<PendingNoteOff>& notesToTurnOff, double beat, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double blockStartTime, int numSamples, juce::int64 totalSamples);
+    void addNote(juce::Array<PendingNoteOff>& notesToTurnOff, juce::MidiBuffer& midiMessages, juce::AudioProcessorValueTreeState& apvts, double sampleRate, double beat, double blockStartTime, int numSamples, juce::int64 totalSamples);
 
     double lastBeat_ = -1.0;
     double nextEventBeat_ = 0.0;

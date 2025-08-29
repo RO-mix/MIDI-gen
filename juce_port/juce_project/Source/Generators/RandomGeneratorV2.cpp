@@ -187,6 +187,7 @@ juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::Aud
 {
     juce::MidiBuffer pattern;
     double currentBeat = 0.0;
+    juce::Array<PendingNoteOff> notesToTurnOff; // Dummy array, not used in getPattern
 
     auto* baseDurationParam = apvts.getRawParameterValue("RANDOM_V2_BASE_DURATION");
     float baseDurationMap[] = { 16.0f, 8.0f, 4.0f, 3.0f, 2.0f, 1.0f };
@@ -195,11 +196,21 @@ juce::MidiBuffer RandomGeneratorV2::getPattern(double durationInBeats, juce::Aud
 
     if (baseDuration <= 0) baseDuration = 4.0;
 
+    // Since getPattern generates a complete buffer, we can simulate a single large block.
+    const int numSamples = (int)(durationInBeats * (60.0 / apvts.getRawParameterValue("BPM")->load()) * sampleRate);
+
     while (currentBeat < durationInBeats)
     {
-        generateEventsAt(currentBeat, pattern, apvts, sampleRate, currentBeat);
+        generateEventsAt(notesToTurnOff, currentBeat, pattern, apvts, sampleRate, currentBeat, numSamples, 0);
         currentBeat += baseDuration;
     }
+
+    // In the context of getPattern, we don't expect pending note-offs, but this is for safety.
+    for (const auto& noteOff : notesToTurnOff)
+    {
+        pattern.addEvent(juce::MidiMessage::noteOff(noteOff.channel, noteOff.noteNumber), (int)noteOff.sampleOffTime);
+    }
+
 
     return pattern;
 }

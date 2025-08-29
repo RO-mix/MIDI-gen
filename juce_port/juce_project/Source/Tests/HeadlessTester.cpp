@@ -70,7 +70,7 @@ juce::String HeadlessTester::testRandomGeneratorBasic()
         juce::MidiBuffer buffer;
         // Set a parameter to ensure generation
         *processor->apvts.getRawParameterValue("RANDOM_NOTE_PROBABILITY") = 1.0f;
-        generator.process(buffer, processor->apvts, 44100.0, 0.0);
+        generator.process(buffer, processor->apvts, 44100.0, 0.0, 0.1, 512, 0);
         return formatTestResult("RandomGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
     catch (const std::exception& e) { return formatTestResult("RandomGenerator Basic", false, e.what()); }
@@ -86,8 +86,13 @@ juce::String HeadlessTester::testRandomGeneratorParameters()
         *processor->apvts.getRawParameterValue("RANDOM_NOTE_PROBABILITY") = 1.0f;
 
         juce::MidiBuffer buffer;
+        juce::int64 totalSamples = 0;
         for (int i = 0; i < 50; ++i)
-            generator.process(buffer, processor->apvts, 44100.0, static_cast<double>(i) * 0.25);
+        {
+            double beat = static_cast<double>(i) * 0.25;
+            generator.process(buffer, processor->apvts, 44100.0, beat, beat + 0.1, 512, totalSamples);
+            totalSamples += 512;
+        }
         
         bool allInRange = true;
         for (const auto msg : buffer)
@@ -111,7 +116,7 @@ juce::String HeadlessTester::testEuclideanGeneratorBasic()
         auto generator = EuclideanGenerator();
         juce::MidiBuffer buffer;
         *processor->apvts.getRawParameterValue("EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
-        generator.process(buffer, processor->apvts, 44100.0, 0.0);
+        generator.process(buffer, processor->apvts, 44100.0, 0.0, 0.1, 512, 0);
         return formatTestResult("EuclideanGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
     catch (const std::exception& e) { return formatTestResult("EuclideanGenerator Basic", false, e.what()); }
@@ -128,9 +133,13 @@ juce::String HeadlessTester::testEuclideanGeneratorPatterns()
         *processor->apvts.getRawParameterValue("EUCLIDEAN_RATE") = 6; // 1/16
 
         juce::MidiBuffer buffer;
+        juce::int64 totalSamples = 0;
         // Process for a full cycle (8 steps at 1/16 rate = 2 beats)
         for (double beat = 0.0; beat < 2.0; beat += 0.1)
-             generator.process(buffer, processor->apvts, 44100.0, beat);
+        {
+             generator.process(buffer, processor->apvts, 44100.0, beat, beat + 0.1, 512, totalSamples);
+             totalSamples += 512;
+        }
 
         int noteCount = 0;
         for (const auto msg : buffer) if (msg.getMessage().isNoteOn()) noteCount++;
@@ -147,7 +156,7 @@ juce::String HeadlessTester::testDualEuclideanGeneratorBasic()
         auto generator = DualEuclideanGenerator();
         juce::MidiBuffer buffer;
         *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
-        generator.process(buffer, processor->apvts, 44100.0, 0.0);
+        generator.process(buffer, processor->apvts, 44100.0, 0.0, 0.1, 512, 0);
         return formatTestResult("DualEuclideanGenerator Basic", !buffer.isEmpty(), "Generated MIDI events");
     }
     catch (const std::exception& e) { return formatTestResult("DualEuclideanGenerator Basic", false, e.what()); }
@@ -165,8 +174,12 @@ juce::String HeadlessTester::testDualEuclideanGeneratorPatterns()
         *processor->apvts.getRawParameterValue("DUAL_EUCLIDEAN_NOTE_PROBABILITY") = 1.0f;
 
         juce::MidiBuffer buffer;
+        juce::int64 totalSamples = 0;
         for (double beat = 0.0; beat < 4.0; beat += 0.1)
-             generator.process(buffer, processor->apvts, 44100.0, beat);
+        {
+             generator.process(buffer, processor->apvts, 44100.0, beat, beat + 0.1, 512, totalSamples);
+             totalSamples += 512;
+        }
 
         int noteCount = 0;
         for (const auto msg : buffer) if (msg.getMessage().isNoteOn()) noteCount++;
@@ -233,7 +246,7 @@ juce::String HeadlessTester::testLooperRecording()
     try
     {
         auto looper = std::make_unique<Looper>();
-        looper->startRecording();
+        looper->startRecording(16.0, false, 0.0);
         if (!looper->isRecordingActive())
             return formatTestResult("Looper Recording", false, "Recording should be active after start");
         

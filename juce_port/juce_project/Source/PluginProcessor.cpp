@@ -533,7 +533,14 @@ void CreativeMidiGeneratorAudioProcessor::togglePlayback()
 {
     isPlaying_ = !isPlaying_;
 
-    if (!isPlaying_)
+    if (isPlaying_)
+    {
+        if (activeGenerator)
+        {
+            activeGenerator->reset();
+        }
+    }
+    else
     {
         // If we just stopped playback, send an all-notes-off message
         // to ensure no generator notes are left hanging.
@@ -616,8 +623,8 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
             if (looper_->isPlaybackActive())
             {
                 juce::Logger::writeToLog("ACTION: Stopping looper playback.");
-                auto noteOffs = looper_->stopPlayback();
-                buffersToMerge_.add(noteOffs); // Add specific note-offs to a temporary buffer
+                looper_->stopPlayback();
+                sendAllNotesOff = true; // Ensure all notes are turned off.
             }
             else
             {

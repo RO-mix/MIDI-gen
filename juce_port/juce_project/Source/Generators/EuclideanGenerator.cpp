@@ -51,57 +51,7 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
 
         if (pattern_[currentStep_] && random_.nextFloat() < noteProbability)
         {
-            int generatedNote = note;
-            if (deviationRange > 0 && !scaleNotes_.empty())
-            {
-                std::vector<int> possibleNotes;
-                for (int i = 0; i < 128; ++i)
-                {
-                    bool isInScale = false;
-                    for (int scaleNote : scaleNotes_)
-                    {
-                        if (i % 12 == (rootNote_ + scaleNote) % 12)
-                        {
-                            isInScale = true;
-                            break;
-                        }
-                    }
-                    if (isInScale)
-                    {
-                        possibleNotes.push_back(i);
-                    }
-                }
-
-                if (!possibleNotes.empty())
-                {
-                    int minNote, maxNote;
-                    if (isBipolar)
-                    {
-                        minNote = note - deviationRange;
-                        maxNote = note + deviationRange;
-                    }
-                    else
-                    {
-                        minNote = note;
-                        maxNote = note + deviationRange;
-                    }
-
-                    std::vector<int> notesInRange;
-                    for (int p_note : possibleNotes)
-                    {
-                        if (p_note >= minNote && p_note <= maxNote)
-                        {
-                            notesInRange.push_back(p_note);
-                        }
-                    }
-
-                    if (!notesInRange.empty())
-                    {
-                        generatedNote = notesInRange[random_.nextInt(notesInRange.size())];
-                    }
-                }
-            }
-
+            int generatedNote = getDeviatedNote(note, deviationRange, isBipolar);
             generatedNote = juce::jlimit(0, 127, generatedNote);
             float durationInBeats = Duration::getBiasedDuration(durationBiasParam ? durationBiasParam->load() : 0.5f, rate);
             int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
@@ -189,28 +139,7 @@ juce::MidiBuffer EuclideanGenerator::getPattern(double durationInBeats, juce::Au
     {
         if (pattern_[stepCounter % steps] && random_.nextFloat() < noteProbability)
         {
-            int generatedNote = note;
-            if (deviationRange > 0 && !scaleNotes_.empty())
-            {
-                int devStep = (random_.nextInt(3) - 1);
-                lastDeviation_ += devStep;
-                if (isBipolar)
-                    lastDeviation_ = juce::jlimit(-deviationRange, deviationRange, lastDeviation_);
-                else
-                    lastDeviation_ = juce::jlimit(0, deviationRange, lastDeviation_);
-
-                auto it = std::find_if(scaleNotes_.begin(), scaleNotes_.end(), [&](int scaleNote){ return (note % 12) == (rootNote_ + scaleNote) % 12; });
-                if(it != scaleNotes_.end())
-                {
-                    int baseIndex = std::distance(scaleNotes_.begin(), it);
-                    int newIndex = baseIndex + lastDeviation_;
-                    while(newIndex < 0) newIndex += scaleNotes_.size();
-                    newIndex %= scaleNotes_.size();
-                    int octave = note / 12;
-                    generatedNote = (octave * 12) + rootNote_ + scaleNotes_[newIndex];
-                }
-            }
-
+            int generatedNote = getDeviatedNote(note, deviationRange, isBipolar);
             generatedNote = juce::jlimit(0, 127, generatedNote);
             float duration = Duration::getBiasedDuration(durationBiasParam ? durationBiasParam->load() : 0.5f, rate);
             int samplePos = static_cast<int>(currentBeat * (60.0 / bpm) * sampleRate);
@@ -232,4 +161,62 @@ void EuclideanGenerator::reset()
     lastBeat_ = -1.0;
     currentStep_ = -1;
     lastDeviation_ = 0;
+}
+
+// ==============================================================================
+// Private Helper Methods
+// ==============================================================================
+
+int EuclideanGenerator::getDeviatedNote(int baseNote, int deviationRange, bool isBipolar)
+{
+    if (deviationRange > 0 && !scaleNotes_.empty())
+    {
+        std::vector<int> possibleNotes;
+        for (int i = 0; i < 128; ++i)
+        {
+            bool isInScale = false;
+            for (int scaleNote : scaleNotes_)
+            {
+                if (i % 12 == (rootNote_ + scaleNote) % 12)
+                {
+                    isInScale = true;
+                    break;
+                }
+            }
+            if (isInScale)
+            {
+                possibleNotes.push_back(i);
+            }
+        }
+
+        if (!possibleNotes.empty())
+        {
+            int minNote, maxNote;
+            if (isBipolar)
+            {
+                minNote = baseNote - deviationRange;
+                maxNote = baseNote + deviationRange;
+            }
+            else
+            {
+                minNote = baseNote;
+                maxNote = baseNote + deviationRange;
+            }
+
+            std::vector<int> notesInRange;
+            for (int p_note : possibleNotes)
+            {
+                if (p_note >= minNote && p_note <= maxNote)
+                {
+                    notesInRange.push_back(p_note);
+                }
+            }
+
+            if (!notesInRange.empty())
+            {
+                return notesInRange[random_.nextInt(notesInRange.size())];
+            }
+        }
+    }
+    return baseNote;
 }

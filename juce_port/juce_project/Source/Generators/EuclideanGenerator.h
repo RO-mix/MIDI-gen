@@ -31,6 +31,7 @@ private:
 
     // Helper methods
     void updatePattern(int steps, int pulses);
+    int getDeviatedNote(int baseNote, int deviationRange, bool isBipolar);
 
     // Random number generation
     juce::Random random_;

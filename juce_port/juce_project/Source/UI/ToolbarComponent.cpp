@@ -37,18 +37,12 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     }
     rootNoteAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "ROOT_NOTE", rootNoteCombo);
 
-    addAndMakeVisible(rootNoteLabel);
-    rootNoteLabel.setText("Root Note", juce::dontSendNotification);
-
     addAndMakeVisible(scaleCombo);
     if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("SCALE")))
     {
         scaleCombo.addItemList(choiceParam->choices, 1);
     }
     scaleAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "SCALE", scaleCombo);
-
-    addAndMakeVisible(scaleLabel);
-    scaleLabel.setText("Scale", juce::dontSendNotification);
 
     // Preset Controls
     presetDirectory = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
@@ -115,12 +109,10 @@ void ToolbarComponent::resized()
     // --- Row 2: Musical Context & Presets ---
     row = bounds.removeFromTop(40);
 
-    rootNoteLabel.setBounds(row.removeFromLeft(labelWidth));
-    rootNoteCombo.setBounds(row.removeFromLeft(componentWidth - 20));
+    rootNoteCombo.setBounds(row.removeFromLeft(labelWidth + componentWidth - 20));
     row.removeFromLeft(spacing);
 
-    scaleLabel.setBounds(row.removeFromLeft(labelWidth));
-    scaleCombo.setBounds(row.removeFromLeft(componentWidth + 20));
+    scaleCombo.setBounds(row.removeFromLeft(labelWidth + componentWidth + 20));
     row.removeFromLeft(spacing);
 
     presetCombo.setBounds(row.removeFromLeft(componentWidth + 20));

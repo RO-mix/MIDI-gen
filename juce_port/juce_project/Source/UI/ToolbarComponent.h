@@ -42,8 +42,6 @@ private:
     // Labels
     juce::Label bpmLabel;
     juce::Label midiChannelLabel;
-    juce::Label rootNoteLabel;
-    juce::Label scaleLabel;
 
     // Attachments
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> startAttachment;

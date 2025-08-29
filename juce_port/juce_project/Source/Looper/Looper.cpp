@@ -82,15 +82,11 @@ void Looper::startPlayback()
 
 juce::MidiBuffer Looper::stopPlayback()
 {
-    juce::MidiBuffer noteOffs;
-    for (int noteNumber : currentlyPlayingNotes)
-    {
-        // Assuming channel 1 for now, this could be improved
-        noteOffs.addEvent(juce::MidiMessage::noteOff(1, noteNumber), 0);
-    }
-    currentlyPlayingNotes.clear();
     isPlaying = false;
-    return noteOffs;
+    currentlyPlayingNotes.clear(); // Clear the set of playing notes
+    // The processor will be responsible for sending a general All-Notes-Off
+    // to prevent hanging notes more robustly.
+    return juce::MidiBuffer();
 }
 
 void Looper::clear()
@@ -101,6 +97,8 @@ void Looper::clear()
     pristine_loop_.clear();
     pendingNotes.clear();
     generationBuffer.clear();
+    loopStart = 0.0;
+    loopEnd = 0.0;
 }
 
 juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel)
@@ -347,7 +345,58 @@ void Looper::startRecording(double maxDuration, bool isOverdub, double currentBe
 
 void Looper::stopRecording()
 {
-    setRecording(false);
+    if (!isRecording) return;
+
+    isRecording = false;
+
+    // Finalize any notes that are still "on" (lacking a note-off)
+    if (!pendingNotes.empty())
+    {
+        double endOfLoop = 0.0;
+        if (!recordedNotes.empty())
+        {
+            endOfLoop = std::max_element(recordedNotes.begin(), recordedNotes.end(),
+                [](const RecordedNote& a, const RecordedNote& b) {
+                    return (a.beatTime + a.durationInBeats) < (b.beatTime + b.durationInBeats);
+                })->beatTime;
+        }
+
+        for (auto& pendingNote : pendingNotes)
+        {
+            pendingNote.durationInBeats = endOfLoop - pendingNote.beatTime;
+            if (pendingNote.durationInBeats <= 0)
+            {
+                pendingNote.durationInBeats = 0.25; // Give it a default short duration
+            }
+            recordedNotes.push_back(pendingNote);
+        }
+        pendingNotes.clear();
+    }
+
+    if (recordedNotes.empty())
+    {
+        loopStart = 0.0;
+        loopEnd = 0.0;
+        return;
+    }
+
+    // Normalize beat times and set loop duration
+    double minBeat = recordedNotes.front().beatTime;
+    double maxBeat = 0.0;
+
+    for (auto& note : recordedNotes)
+    {
+        note.beatTime -= minBeat;
+        if (note.beatTime + note.durationInBeats > maxBeat)
+        {
+            maxBeat = note.beatTime + note.durationInBeats;
+        }
+    }
+
+    loopStart = 0.0;
+    loopEnd = std::ceil(maxBeat * 4.0) / 4.0; // Quantize to nearest 1/16th note up
+
+    pristine_loop_ = recordedNotes;
 }
 
 void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRate, double bpm, bool isOverdub, double requestedDuration)

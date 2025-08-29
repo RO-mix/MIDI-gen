@@ -65,8 +65,8 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
                 if (patternA_[masterStepA_])
                 {
                     int finalNoteA = getDeviatedNote(noteA, devA, bipolarA);
-                    float durationInBeats = Duration::getBiasedDuration(durationBiasA, rate);
-                    int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
+                    float durationInBeatsA = Duration::getBiasedDuration(durationBiasA, rate);
+                    int durationInSamples = static_cast<int>(durationInBeatsA * (60.0 / bpm) * sampleRate);
                     double beatInBlock = lastBeat_ - blockStartTime;
                     int samplePos = static_cast<int>((beatInBlock / blockDurationBeats) * numSamples);
                     if (samplePos < 0) samplePos = 0;
@@ -92,21 +92,21 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
                 if (patternB_[masterStepB_])
                 {
                     int finalNoteB = getDeviatedNote(noteB, devB, bipolarB);
-                    float durationInBeats = Duration::getBiasedDuration(durationBiasB, rate);
-                    int durationInSamples = static_cast<int>(durationInBeats * (60.0 / bpm) * sampleRate);
+                    float durationInBeatsB = Duration::getBiasedDuration(durationBiasB, rate);
+                    int durationInSamplesB = static_cast<int>(durationInBeatsB * (60.0 / bpm) * sampleRate);
                     double beatInBlock = lastBeat_ - blockStartTime;
                     int samplePos = static_cast<int>((beatInBlock / blockDurationBeats) * numSamples);
                     if (samplePos < 0) samplePos = 0;
                     if (samplePos < numSamples)
                     {
                         midiMessages.addEvent(juce::MidiMessage::noteOn(channel, finalNoteB, (juce::uint8)velocityB), samplePos);
-                        if (samplePos + durationInSamples < numSamples)
+                        if (samplePos + durationInSamplesB < numSamples)
                         {
-                            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamples);
+                            midiMessages.addEvent(juce::MidiMessage::noteOff(channel, finalNoteB), samplePos + durationInSamplesB);
                         }
                         else
                         {
-                            notesToTurnOff.add({ finalNoteB, channel, totalSamples + samplePos + durationInSamples });
+                            notesToTurnOff.add({ finalNoteB, channel, totalSamples + samplePos + durationInSamplesB });
                         }
                     }
                 }

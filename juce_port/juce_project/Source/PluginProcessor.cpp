@@ -199,12 +199,9 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     juce::MidiBuffer generatedMidi;
     juce::MidiBuffer looperPlaybackMidi;
 
-    if (looper_ && looper_->isPlaybackActive())
-    {
-        bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
-        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, lastBlockBeat, currentBeat_, isPadMode);
-    }
-    else if (activeGenerator != nullptr && isPlaying_)
+    // --- Generate MIDI from sources ---
+    juce::MidiBuffer generatedMidi;
+    if (activeGenerator != nullptr && isPlaying_)
     {
         auto newPendingNotes = activeGenerator->process(generatedMidi, apvts, sampleRate_, lastBlockBeat, currentBeat_, numSamples, totalSamples_);
         pendingNoteOffs_.addArray(newPendingNotes);
@@ -226,30 +223,40 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         }
     }
 
-    if (looper_ && looper_->isRecordingActive())
+    juce::MidiBuffer looperPlaybackMidi;
+    if (looper_ && looper_->isPlaybackActive())
     {
-        for (const auto metadata : midiMessages)
-            looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
-
-        if (looper_->isPlaybackActive())
-        {
-            for (const auto metadata : looperPlaybackMidi)
-                looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
-        }
-        else if (isPlaying_)
-        {
-            for (const auto metadata : generatedMidi)
-                looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
-        }
+        bool isPadMode = apvts.getRawParameterValue("LOOPER_PAD_MODE")->load() > 0.5f;
+        looperPlaybackMidi = looper_->getPlaybackBuffer(numSamples, lastBlockBeat, currentBeat_, isPadMode);
     }
 
-    // Combine buffers
+    // --- Record MIDI if necessary ---
+    if (looper_ && looper_->isRecordingActive())
+    {
+        // When recording, we want to capture the final mix of MIDI that the user is hearing.
+        // So, we create a temporary buffer of what will be played, and record that.
+        juce::MidiBuffer finalMidiForRecording;
+        finalMidiForRecording.addEvents(looperPlaybackMidi, 0, -1, 0);
+        finalMidiForRecording.addEvents(generatedMidi, 0, -1, 0);
+        finalMidiForRecording.addEvents(thruMessages, 0, -1, 0);
+
+        for (const auto metadata : finalMidiForRecording)
+            looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
+    }
+
+    // --- Combine buffers for final output ---
     if (looper_ && looper_->isPlaybackActive())
     {
         midiMessages.addEvents(looperPlaybackMidi, 0, -1, 0);
+        // If THROUGH is on, we also add the live generator output.
+        if (apvts.getRawParameterValue("LOOPER_THROUGH")->load())
+        {
+            midiMessages.addEvents(generatedMidi, 0, -1, 0);
+        }
     }
     else
     {
+        // If looper isn't playing, just send the generator's output.
         midiMessages.addEvents(generatedMidi, 0, -1, 0);
     }
 

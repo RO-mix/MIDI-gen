@@ -406,8 +406,7 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
         clear();
     }
 
-    std::map<int, std::vector<std::pair<double, int>>> noteOnEvents;
-
+    std::map<int, RecordedNote> pendingNotes;
     const double beatsPerSample = bpm / 60.0 / sampleRate;
 
     for (const auto metadata : buffer)
@@ -417,33 +416,31 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
 
         if (message.isNoteOn())
         {
-            noteOnEvents[message.getNoteNumber()].push_back({ beatTime, message.getVelocity() });
+            // If there's a hanging note of the same pitch, finalize it.
+            if (pendingNotes.count(message.getNoteNumber()))
+            {
+                pendingNotes[message.getNoteNumber()].durationInBeats = beatTime - pendingNotes[message.getNoteNumber()].beatTime;
+                if (pendingNotes[message.getNoteNumber()].durationInBeats <= 0)
+                    pendingNotes[message.getNoteNumber()].durationInBeats = 0.125;
+                recordedNotes.push_back(pendingNotes[message.getNoteNumber()]);
+                pendingNotes.erase(message.getNoteNumber());
+            }
+
+            RecordedNote newNote;
+            newNote.message = message;
+            newNote.beatTime = beatTime;
+            pendingNotes[message.getNoteNumber()] = newNote;
         }
         else if (message.isNoteOff())
         {
-            auto it = noteOnEvents.find(message.getNoteNumber());
-            if (it != noteOnEvents.end() && !it->second.empty())
+            if (pendingNotes.count(message.getNoteNumber()))
             {
-                auto& noteOns = it->second;
-                auto noteOnIt = std::min_element(noteOns.begin(), noteOns.end(),
-                                                 [](const auto& a, const auto& b) {
-                                                     return a.first < b.first;
-                                                 });
-                RecordedNote newNote;
-                newNote.message = juce::MidiMessage::noteOn(message.getChannel(),
-                                                            message.getNoteNumber(),
-                                                            (juce::uint8)noteOnIt->second);
-                newNote.beatTime = noteOnIt->first;
-                newNote.durationInBeats = beatTime - noteOnIt->first;
-
-                if (newNote.durationInBeats <= 0)
-                    newNote.durationInBeats = 0.125;
-
-                if (newNote.beatTime < requestedDuration)
-                {
-                    recordedNotes.push_back(newNote);
-                }
-                noteOns.erase(noteOnIt);
+                pendingNotes[message.getNoteNumber()].durationInBeats = beatTime - pendingNotes[message.getNoteNumber()].beatTime;
+                 if (pendingNotes[message.getNoteNumber()].durationInBeats <= 0)
+                    pendingNotes[message.getNoteNumber()].durationInBeats = 0.125;
+                if (pendingNotes[message.getNoteNumber()].beatTime < requestedDuration)
+                    recordedNotes.push_back(pendingNotes[message.getNoteNumber()]);
+                pendingNotes.erase(message.getNoteNumber());
             }
         }
     }

@@ -18,94 +18,194 @@ void TimelineComponent::paint(juce::Graphics& g)
     g.setColour(juce::Colours::darkgrey);
     g.drawRect(getLocalBounds(), 1);
 
-    // --- Unified Looper/Live View ---
-    double loopDuration = audioProcessor.getLooperDurationInBeats();
-    if (loopDuration <= 0) loopDuration = 16.0; // Default to 4 bars if no loop
+    // Determine current mode
+    enum class TimelineMode { Live, Playback, Recording };
+    TimelineMode mode = TimelineMode::Live;
+    if (audioProcessor.isLooperRecording())
+        mode = TimelineMode::Recording;
+    else if (audioProcessor.isLooperPlaying())
+        mode = TimelineMode::Playback;
 
-    // 2. Draw Grid
-    const double visualGridResolution = 0.25; // 16th notes
-    const int numGridLines = static_cast<int>(loopDuration / visualGridResolution);
-    for (int i = 1; i <= numGridLines; ++i)
+    // 2. Draw content based on mode
+    if (mode == TimelineMode::Live)
     {
-        const double beat = i * visualGridResolution;
-        if (beat >= loopDuration) continue;
+        // --- Live Generator View ---
+        const float viewWidthBeats = 16.0f; // Show 4 bars
 
-        const float x = (float)(beat / loopDuration) * getWidth();
+        // Draw Scrolling Grid
+        const double gridResolution = 0.25; // 16th notes
+        double currentBeat = audioProcessor.getCurrentBeat();
+        double startBeat = currentBeat - fmod(currentBeat, gridResolution);
 
-        const bool isBarLine = (fmod(beat, 4.0) < 0.001);
-        const bool isBeatLine = (fmod(beat, 1.0) < 0.001);
-
-        if (isBarLine) g.setColour(juce::Colours::grey);
-        else if (isBeatLine) g.setColour(juce::Colours::dimgrey);
-        else g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
-
-        g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
-    }
-
-    // 3. Get all notes to be drawn (looper + live)
-    auto looperNotes = audioProcessor.getLooperNotes();
-    auto liveNotes = audioProcessor.getLiveNotes();
-
-    int minNote = 127, maxNote = 0;
-    for (const auto& note : looperNotes) {
-        minNote = juce::jmin(minNote, note.message.getNoteNumber());
-        maxNote = juce::jmax(maxNote, note.message.getNoteNumber());
-    }
-    double currentBeat = audioProcessor.getCurrentBeat();
-    for (const auto& note : liveNotes) {
-        // Only consider live notes that are relevant to the current view
-        if (note.startTime >= currentBeat - loopDuration && note.startTime < currentBeat + loopDuration)
+        for (double beat = startBeat; beat < currentBeat + viewWidthBeats + gridResolution; beat += gridResolution)
         {
-            minNote = juce::jmin(minNote, note.noteNumber);
-            maxNote = juce::jmax(maxNote, note.noteNumber);
+            float x = getWidth() * (float)((beat - currentBeat) / viewWidthBeats);
+            if (x < 0 || x > getWidth()) continue;
+
+            const bool isBarLine = (fmod(beat, 4.0) < 0.001);
+            const bool isBeatLine = (fmod(beat, 1.0) < 0.001);
+
+            if (isBarLine)
+            {
+                g.setColour(juce::Colours::grey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else if (isBeatLine)
+            {
+                g.setColour(juce::Colours::dimgrey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else
+            {
+                g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
         }
+
+        const auto& notes = audioProcessor.getLiveNotes();
+        const float nowX = getWidth() * 0.5f;
+        const float pixelsPerBeat = getWidth() / viewWidthBeats;
+
+        if (!notes.empty())
+        {
+            int minNote = 127, maxNote = 0;
+            for (const auto& note : notes)
+            {
+                minNote = juce::jmin(minNote, note.noteNumber);
+                maxNote = juce::jmax(maxNote, note.noteNumber);
+            }
+            int noteRange = juce::jmax(12, maxNote - minNote);
+
+            for (const auto& note : notes)
+            {
+                float x = nowX + (float)(note.startTime - audioProcessor.getCurrentBeat()) * pixelsPerBeat;
+                float w = (float)note.duration * pixelsPerBeat;
+                if (x + w < 0 || x > getWidth()) continue;
+
+                float noteHeight = (float)getHeight() / (noteRange + 1);
+                float y = (1.0f - (float)(note.noteNumber - minNote) / noteRange) * getHeight() - noteHeight;
+
+                g.setColour(juce::Colours::black.withAlpha(0.4f));
+                g.fillRect(x + 2, y + 2, w, noteHeight);
+
+                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.6f, 1.0f);
+                g.setColour(juce::Colour::fromHSV(0.08f, 0.9f, brightness, 1.0f));
+                g.fillRect(x, y, w, noteHeight);
+            }
+        }
+        // Draw "now" cursor in the middle
+        g.setColour(juce::Colours::white.withAlpha(0.7f));
+        g.drawVerticalLine(juce::roundToInt(nowX), 0.0f, (float)getHeight());
     }
-    int noteRange = juce::jmax(24, maxNote - minNote); // Ensure a minimum visible range
-
-    // 4. Draw Looper Notes
-    for (const auto& note : looperNotes)
+    else
     {
-        float x = (float)(fmod(note.beatTime, loopDuration) / loopDuration) * getWidth();
-        float w = (float)(note.durationInBeats / loopDuration) * getWidth();
-        float noteHeight = (float)getHeight() / (noteRange + 1);
-        float y = (1.0f - (float)(note.message.getNoteNumber() - minNote) / noteRange) * getHeight() - noteHeight;
+        // --- Looper Playback/Recording View ---
+        double loopDuration = audioProcessor.getLooperDurationInBeats();
+        if (loopDuration <= 0) loopDuration = 4.0; // Default if no loop
 
-        g.setColour(juce::Colours::black.withAlpha(0.4f));
-        g.fillRect(x + 2, y + 2, w, noteHeight);
+        // Draw Grid
+        auto* gridParam = audioProcessor.apvts.getRawParameterValue("LOOPER_QUANTIZE_GRID");
+        int gridChoice = gridParam ? static_cast<int>(gridParam->load()) : 0;
+        double gridResolution = 0.0;
+        switch (gridChoice) {
+            // "Off", "1/4", "1/8", "1/16", "1/32", "1/64"
+            case 1: gridResolution = 1.0; break;
+            case 2: gridResolution = 0.5; break;
+            case 3: gridResolution = 0.25; break;
+            case 4: gridResolution = 0.125; break;
+            case 5: gridResolution = 0.0625; break;
+            default: break; // Case 0 is "Off"
+        }
+        double visualGridResolution = (gridResolution > 0) ? gridResolution : 0.5; // Use 8th notes if off
 
-        auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.6f, 1.0f);
-        g.setColour(juce::Colour::fromHSV(0.58f, 0.8f, brightness, 1.0f)); // Blue-ish for looper
-        g.fillRect(x, y, w, noteHeight);
-    }
+        const int numGridLines = static_cast<int>(loopDuration / visualGridResolution);
+        for (int i = 1; i <= numGridLines; ++i)
+        {
+            const double beat = i * visualGridResolution;
+            if (beat >= loopDuration) continue;
 
-    // 5. Draw Live Notes (from generator or MIDI input)
-    for (const auto& note : liveNotes)
-    {
-        double timeInLoop = fmod(note.startTime, loopDuration);
-        float x = (float)(timeInLoop / loopDuration) * getWidth();
-        float w = (float)(note.duration / loopDuration) * getWidth();
+            const float x = (float)(beat / loopDuration) * getWidth();
 
-        if (x + w < 0 || x > getWidth()) continue;
+            const bool isBarLine = (fmod(beat, 4.0) < 0.001);
+            const bool isBeatLine = (fmod(beat, 1.0) < 0.001);
 
-        float noteHeight = (float)getHeight() / (noteRange + 1);
-        float y = (1.0f - (float)(note.noteNumber - minNote) / noteRange) * getHeight() - noteHeight;
+            if (isBarLine)
+            {
+                g.setColour(juce::Colours::grey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else if (isBeatLine)
+            {
+                g.setColour(juce::Colours::dimgrey);
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+            else
+            {
+                g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+            }
+        }
 
-        g.setColour(juce::Colours::black.withAlpha(0.4f));
-        g.fillRect(x + 2, y + 2, w, noteHeight);
+        // --- Draw Notes ---
 
-        auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.6f, 1.0f);
-        g.setColour(juce::Colour::fromHSV(0.08f, 0.9f, brightness, 1.0f)); // Orange-ish for live
-        if (audioProcessor.isLooperRecording())
-            g.setColour(juce::Colour::fromHSV(0.0f, 0.9f, brightness, 1.0f)); // Red-ish for recording
+        // 1. Get all notes and determine vertical range
+        auto& looperNotes = audioProcessor.getLooperNotes();
+        auto& liveNotes = audioProcessor.getLiveNotes();
 
-        g.fillRect(x, y, w, noteHeight);
-    }
+        int minNote = 127, maxNote = 0;
+        for (const auto& note : looperNotes) {
+            minNote = juce::jmin(minNote, note.message.getNoteNumber());
+            maxNote = juce::jmax(maxNote, note.message.getNoteNumber());
+        }
+        if (mode == TimelineMode::Recording) {
+            for (const auto& note : liveNotes) {
+                minNote = juce::jmin(minNote, note.noteNumber);
+                maxNote = juce::jmax(maxNote, note.noteNumber);
+            }
+        }
+        int noteRange = juce::jmax(24, maxNote - minNote);
 
-    // 6. Draw Playhead
-    if (audioProcessor.isLooperPlaying() || audioProcessor.isLooperRecording())
-    {
+        // 2. Draw Looper Notes
+        for (const auto& note : looperNotes)
+        {
+            float x = (float)(note.beatTime / loopDuration) * getWidth();
+            float w = (float)(note.durationInBeats / loopDuration) * getWidth();
+            float noteHeight = (float)getHeight() / (noteRange + 1);
+            float y = (1.0f - (float)(note.message.getNoteNumber() - minNote) / noteRange) * getHeight() - noteHeight;
+
+            g.setColour(juce::Colours::black.withAlpha(0.4f));
+            g.fillRect(x + 2, y + 2, w, noteHeight);
+
+            auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.6f, 1.0f);
+            g.setColour(juce::Colour::fromHSV(0.58f, 0.8f, brightness, 1.0f)); // Blue-ish for looper
+            g.fillRect(x, y, w, noteHeight);
+        }
+
+        // 3. Draw Live Notes if Recording
+        if (mode == TimelineMode::Recording)
+        {
+            for (const auto& note : liveNotes)
+            {
+                double timeInLoop = fmod(note.startTime, loopDuration);
+                float x = (float)(timeInLoop / loopDuration) * getWidth();
+                float w = (float)(note.duration / loopDuration) * getWidth();
+                if (x + w < 0 || x > getWidth()) continue;
+
+                float noteHeight = (float)getHeight() / (noteRange + 1);
+                float y = (1.0f - (float)(note.noteNumber - minNote) / noteRange) * getHeight() - noteHeight;
+
+                g.setColour(juce::Colours::black.withAlpha(0.4f));
+                g.fillRect(x + 2, y + 2, w, noteHeight);
+
+                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.6f, 1.0f);
+                g.setColour(juce::Colour::fromHSV(0.0f, 0.9f, brightness, 1.0f)); // Red-ish for recording
+                g.fillRect(x, y, w, noteHeight);
+            }
+        }
+
+        // Draw Playhead
         float progress = (float)audioProcessor.getLooperPlaybackProgress();
-        g.setColour(audioProcessor.isLooperRecording() ? juce::Colours::red : juce::Colours::white);
+        g.setColour(mode == TimelineMode::Recording ? juce::Colours::red : juce::Colours::white);
         g.setOpacity(0.7f);
         g.drawVerticalLine(progress * getWidth(), 0.0f, (float)getHeight());
     }
@@ -118,9 +218,6 @@ void TimelineComponent::resized()
 
 void TimelineComponent::timerCallback()
 {
-    // Only repaint if something is happening, to save CPU.
-    if (audioProcessor.isPlaying() || audioProcessor.isLooperPlaying() || audioProcessor.isLooperRecording())
-    {
-        repaint();
-    }
+    // This will trigger a repaint to update the playhead animation.
+    repaint();
 }

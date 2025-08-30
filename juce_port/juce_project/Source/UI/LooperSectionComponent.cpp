@@ -67,6 +67,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordButton.setButtonText("Record");
     recordButton.onClick = [this] { audioProcessor.toggleLooperRecord(); };
 
+    addAndMakeVisible(clearButton);
+    clearButton.setButtonText("Clear");
+    clearButton.onClick = [this] { audioProcessor.clearLooper(); };
+
     addAndMakeVisible(recordLengthCombo);
     if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_RECORD_LENGTH")))
     {
@@ -158,6 +162,7 @@ void LooperSectionComponent::resized()
     // Row 3
     auto row3 = bounds.removeFromTop(rowHeight);
     recordButton.setBounds(row3.removeFromLeft(85));
+    clearButton.setBounds(row3.removeFromLeft(85));
     recordLengthCombo.setBounds(row3.removeFromLeft(130));
     recordOverdubToggle.setBounds(row3.removeFromLeft(80));
     actionQuantizeCombo.setBounds(row3.removeFromLeft(130));

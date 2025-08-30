@@ -419,7 +419,7 @@ void CreativeMidiGeneratorAudioProcessor::toggleLooperPlay()
 
 void CreativeMidiGeneratorAudioProcessor::clearLooper()
 {
-    if (looper_) looper_->clear();
+    scheduleLooperAction(LooperAction::Clear);
 }
 
 void CreativeMidiGeneratorAudioProcessor::captureFromGenerator()
@@ -639,9 +639,10 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
             juce::Logger::writeToLog("ACTION: Executing ToggleRecord.");
             if (looper_->isRecordingActive())
             {
-                juce::Logger::writeToLog("ACTION: Stopping record, scheduling playback.");
+                juce::Logger::writeToLog("ACTION: Stopping record, starting playback.");
                 looper_->stopRecording();
-                scheduleLooperAction(LooperAction::TogglePlay);
+                looper_->startPlayback();
+                listeners_.call([&](Listener& l) { l.looperStateChanged(true); });
             }
             else
             {

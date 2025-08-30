@@ -39,6 +39,7 @@ private:
 
     // Row 3: Recording
     juce::TextButton recordButton;
+    juce::TextButton clearButton;
     juce::ComboBox recordLengthCombo;
     juce::ToggleButton recordOverdubToggle;
     juce::ComboBox actionQuantizeCombo;

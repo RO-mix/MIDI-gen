@@ -31,19 +31,23 @@ juce::StringArray HeadlessTester::runAllTests()
 void HeadlessTester::printTestResults(const juce::StringArray& testResults)
 {
     // Use std::cout for headless environments
-    std::cout << "\n=== HEADLESS TEST RESULTS ===\n";
+    std::cout << "\n\n--- DETAILED TEST LOG ---\n\n";
     int passed = 0;
-    for (const auto& result : testResults)
+    for (int i = 0; i < testResults.size(); ++i)
     {
-        std::cout << result << "\n";
+        const auto& result = testResults[i];
+        std::cout << "Test " << (i + 1) << ": " << result << "\n";
         if (result.contains("PASSED"))
             passed++;
     }
-    std::cout << "\nSUMMARY: " << passed << "/" << testResults.size() << " tests passed\n";
+    std::cout << "\n--- TEST SUMMARY ---\n\n";
+    std::cout << "PASSED: " << passed << " / " << testResults.size() << "\n";
+    std::cout << "FAILED: " << (testResults.size() - passed) << " / " << testResults.size() << "\n\n";
+
     if (passed == testResults.size())
-        std::cout << "🎉 All tests passed!\n";
+        std::cout << "RESULT: 🎉 All tests passed!\n";
     else
-        std::cout << "⚠️  Some tests failed - check logs for details\n";
+        std::cout << "RESULT: ⚠️  Some tests failed - check logs for details\n";
 
     // Also log to a file for CI/CD systems
     juce::File logFile = juce::File::getSpecialLocation(juce::File::SpecialLocationType::tempDirectory).getChildFile("headless_test_results.txt");

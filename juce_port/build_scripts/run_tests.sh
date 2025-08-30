@@ -36,8 +36,15 @@ if [ ! -d "$JUCE_PATH" ]; then
 fi
 echo -e "${GREEN}JUCE found: $JUCE_PATH${NC}"
 
+# --- Argument Parsing ---
+NO_CLEAN=false
+if [ "$1" == "--no-clean" ]; then
+    NO_CLEAN=true
+    echo -e "${CYAN}Running with --no-clean option. Build directory will not be cleared.${NC}"
+fi
+
 # --- Create or clean build directory ---
-if [ -d "$BUILD_PATH" ]; then
+if [ "$NO_CLEAN" = false ] && [ -d "$BUILD_PATH" ]; then
     echo -e "${YELLOW}Attempting to clean existing build directory: $BUILD_PATH${NC}"
     rm -rf "$BUILD_PATH"
     if [ $? -eq 0 ]; then

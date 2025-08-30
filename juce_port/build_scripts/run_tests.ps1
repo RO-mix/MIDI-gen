@@ -3,7 +3,8 @@
 param(
     [string]$JucePath = "D:\PROG\JUCE",
     [string]$ProjectPath = "$PSScriptRoot\..\juce_project",
-    [string]$BuildPath = "$PSScriptRoot\..\build"
+    [string]$BuildPath = "$PSScriptRoot\..\build",
+    [switch]$NoClean = $false
 )
 
 Write-Host "Creative MIDI Generator - Headless Test Runner" -ForegroundColor Green
@@ -29,7 +30,10 @@ if (-not (Test-Path $JucePath)) {
 }
 
 # Create or clean build directory
-if (Test-Path $BuildPath) {
+if ($NoClean) {
+    Write-Host "Running with -NoClean option. Build directory will not be cleared." -ForegroundColor Cyan
+}
+elseif (Test-Path $BuildPath) {
     Write-Host "Attempting to clean existing build directory: $BuildPath" -ForegroundColor Yellow
     try {
         Remove-Item -Recurse -Force $BuildPath -ErrorAction Stop

@@ -350,7 +350,14 @@ juce::String HeadlessTester::testLooperAutoRecapture()
             processor->processBlock(buffer, midi);
         }
 
-        // 4. Check for change
+        // Give the processor a few more cycles to ensure state is updated
+        // after the 'instant' action before we check the result.
+        for (int i = 0; i < 5; ++i)
+        {
+            processor->processBlock(buffer, midi);
+        }
+
+        // 5. Check for change
         const auto finalNotes = processor->getLooperNotes();
         bool contentIsDifferent = initialNotes.size() != finalNotes.size();
         if (!contentIsDifferent && !initialNotes.empty() && !finalNotes.empty())

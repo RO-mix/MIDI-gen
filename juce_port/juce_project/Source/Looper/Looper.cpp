@@ -178,6 +178,17 @@ juce::MidiBuffer Looper::processMidiLooperBuffer(int numSamples, double startTim
         }
     }
 
+    // Finalize any remaining hanging notes
+    for (auto const& [noteNum, pendingNote] : pendingNotes)
+    {
+        auto noteToPush = pendingNote;
+        noteToPush.durationInBeats = requestedDuration - noteToPush.beatTime;
+        if (noteToPush.durationInBeats <= 0)
+            noteToPush.durationInBeats = 0.125;
+        if (noteToPush.beatTime < requestedDuration)
+            recordedNotes.push_back(noteToPush);
+    }
+
     // New PAD Mode Logic:
     // Instead of holding note-off messages, this mode now simulates a sustain pedal (CC 64)
     // being held for the duration of the loop. This allows all notes within the loop to sustain

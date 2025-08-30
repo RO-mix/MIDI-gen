@@ -101,14 +101,14 @@ if (-not $testExePath) {
 }
 
 Write-Host "Found test runner: $($testExePath.FullName)" -ForegroundColor Cyan
-Write-Host "--- RUNNING HEADLESS TESTS ---" -ForegroundColor Yellow
+Write-Host "Now running headless tests..." -ForegroundColor Yellow
 try {
     # Execute and capture output. We don't use 2>&1 here to separate stdout and stderr.
     $testResult = & $testExePath.FullName
     $exitCode = $LASTEXITCODE
 
     Write-Host $testResult
-    Write-Host "--- TESTS FINISHED (Exit Code: $exitCode) ---" -ForegroundColor Yellow
+    Write-Host "Tests finished with exit code: $exitCode" -ForegroundColor Yellow
 
     if ($exitCode -ne 0) {
         Write-Error "Some tests failed. Halting script."

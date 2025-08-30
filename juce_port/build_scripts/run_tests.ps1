@@ -78,12 +78,54 @@ try {
     Pop-Location
 }
 
+# Build HeadlessTestRunner
+Write-Host "Building headless test runner..." -ForegroundColor Yellow
+try {
+    $result = & cmake --build $BuildPath --target HeadlessTestRunner --config Release 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Build failed for HeadlessTestRunner"
+        Write-Host $result
+        exit 1
+    }
+    Write-Host "HeadlessTestRunner built successfully" -ForegroundColor Green
+} catch {
+    Write-Error "Build error: $($_.Exception.Message)"
+    exit 1
+}
+
+# Find and Run HeadlessTestRunner
+$testExePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "HeadlessTestRunner.exe" | Select-Object -First 1
+if (-not $testExePath) {
+    Write-Error "HeadlessTestRunner.exe not found"
+    exit 1
+}
+
+Write-Host "Found test runner: $($testExePath.FullName)" -ForegroundColor Cyan
+Write-Host "--- RUNNING HEADLESS TESTS ---" -ForegroundColor Yellow
+try {
+    # Execute and capture output. We don't use 2>&1 here to separate stdout and stderr.
+    $testResult = & $testExePath.FullName
+    $exitCode = $LASTEXITCODE
+
+    Write-Host $testResult
+    Write-Host "--- TESTS FINISHED (Exit Code: $exitCode) ---" -ForegroundColor Yellow
+
+    if ($exitCode -ne 0) {
+        Write-Error "Some tests failed. Halting script."
+        exit $exitCode
+    }
+} catch {
+    Write-Error "Test execution failed: $($_.Exception.Message)"
+    exit 1
+}
+
+
 # Build standalone app
 Write-Host "Building standalone application..." -ForegroundColor Yellow
 try {
     $result = & cmake --build $BuildPath --target CreativeMIDIGenerator_Standalone --config Release 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Build failed"
+        Write-Error "Build failed for Standalone App"
         Write-Host $result
         exit 1
     }
@@ -103,23 +145,11 @@ if (-not $exePath) {
 
 Write-Host "Found executable: $($exePath.FullName)" -ForegroundColor Cyan
 
-# Run tests
-Write-Host "Running headless tests..." -ForegroundColor Yellow
+# Run standalone app
+Write-Host "--- LAUNCHING APPLICATION ---" -ForegroundColor Green
 try {
-    $testResult = & $exePath.FullName 2>&1
-    $exitCode = $LASTEXITCODE
-
-    Write-Host "Test Results:" -ForegroundColor Cyan
-    Write-Host $testResult
-
-    if ($exitCode -eq 0) {
-        Write-Host "All tests passed!" -ForegroundColor Green
-    } else {
-        Write-Host "Some tests failed" -ForegroundColor Yellow
-    }
-
-    exit $exitCode
+    & $exePath.FullName
 } catch {
-    Write-Error "Test execution failed: $($_.Exception.Message)"
+    Write-Error "Application execution failed: $($_.Exception.Message)"
     exit 1
 }

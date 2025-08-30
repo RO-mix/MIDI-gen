@@ -62,7 +62,7 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureDurationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_DURATION", captureDurationCombo);
 
     addAndMakeVisible(captureOverdubToggle);
-    captureOverdubToggle.setButtonText("OVR");
+    captureOverdubToggle.setButtonText("Overdub");
     captureOverdubToggle.setTooltip("При захвате, новые ноты будут добавлены поверх существующих.");
     captureOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_OVERDUB", captureOverdubToggle);
 
@@ -94,7 +94,7 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_RECORD_LENGTH", recordLengthCombo);
 
     addAndMakeVisible(recordOverdubToggle);
-    recordOverdubToggle.setButtonText("OVR");
+    recordOverdubToggle.setButtonText("Overdub");
     recordOverdubToggle.setTooltip("При записи, новые ноты будут добавлены поверх существующих.");
     recordOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_RECORD_OVERDUB", recordOverdubToggle);
 
@@ -149,11 +149,8 @@ void LooperSectionComponent::looperStateChanged(bool isPlaying)
 void LooperSectionComponent::paint(juce::Graphics& g)
 {
     g.setColour(juce::Colours::darkgrey);
-    auto bounds = getLocalBounds();
-    g.drawVerticalLine(bounds.getX(), (float)bounds.getY(), (float)bounds.getBottom());
-    g.drawVerticalLine(bounds.getRight() - 1, (float)bounds.getY(), (float)bounds.getBottom());
-    g.drawHorizontalLine(bounds.getBottom() - 1, (float)bounds.getX(), (float)bounds.getRight());
-    g.setFont(juce::FontOptions(18.0f));
+    g.drawRect(getLocalBounds(), 1);
+    g.setFont(18.0f);
     g.drawText("LOOPER", getLocalBounds().removeFromTop(30), juce::Justification::centred, false);
 }
 
@@ -185,17 +182,21 @@ void LooperSectionComponent::resized()
     recapturePeriodCombo.setBounds(row2.removeFromLeft(130));
     bounds.removeFromTop(spacing);
 
-    // Row 3
+    // Row 3 (Original Layout)
     auto row3 = bounds.removeFromTop(rowHeight);
     recordButton.setBounds(row3.removeFromLeft(85));
-    recordLengthCombo.setBounds(row3.removeFromLeft(100));
-    recordOverdubToggle.setBounds(row3.removeFromLeft(70));
-    recordGeneratorToggle.setBounds(row3.removeFromLeft(70));
-    actionQuantizeCombo.setBounds(row3.removeFromLeft(100));
-    row3.removeFromLeft(spacing); // Add some space
-    clearButton.setBounds(row3.removeFromLeft(70));
-    saveButton.setBounds(row3.removeFromLeft(70));
+    recordLengthCombo.setBounds(row3.removeFromLeft(130));
+    recordOverdubToggle.setBounds(row3.removeFromLeft(80));
+    actionQuantizeCombo.setBounds(row3.removeFromLeft(130));
+    saveButton.setBounds(row3.removeFromLeft(85));
     bounds.removeFromTop(spacing);
+
+    // Row 4 (New Controls)
+    auto row4 = bounds.removeFromTop(rowHeight);
+    recordGeneratorToggle.setBounds(row4.removeFromLeft(85));
+    clearButton.setBounds(row4.removeFromLeft(85));
+    bounds.removeFromTop(spacing);
+
 
     // Intensity Sliders
     auto sliderRow = bounds.removeFromTop(rowHeight);

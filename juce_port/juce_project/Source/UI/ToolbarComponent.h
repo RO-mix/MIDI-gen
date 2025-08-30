@@ -21,6 +21,7 @@ private:
     CreativeMidiGeneratorAudioProcessor& audioProcessor;
 
     // Row 1: Playback and MIDI
+    juce::TextButton startButton;
     juce::Slider bpmSlider;
     juce::Slider midiChannelSlider;
 
@@ -41,8 +42,11 @@ private:
     // Labels
     juce::Label bpmLabel;
     juce::Label midiChannelLabel;
+    juce::Label rootNoteLabel;
+    juce::Label scaleLabel;
 
     // Attachments
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> startAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> bpmAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> midiChannelAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> rootNoteAttachment;

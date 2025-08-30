@@ -5,7 +5,6 @@
 #include "UI/ToolbarComponent.h"
 #include "UI/GeneratorSectionComponent.h"
 #include "UI/LooperSectionComponent.h"
-#include "UI/CustomLookAndFeel.h"
 
 //==============================================================================
 /**
@@ -25,7 +24,7 @@ private:
     // access the processor object that created it.
     CreativeMidiGeneratorAudioProcessor& audioProcessor;
 
-    CustomLookAndFeel lookAndFeel;
+    juce::LookAndFeel_V4 lookAndFeel;
 
     ToolbarComponent toolbarComponent;
     GeneratorSectionComponent generatorSectionComponent;

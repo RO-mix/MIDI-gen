@@ -4,14 +4,19 @@ project(CreativeMIDIGenerator VERSION 1.0.0)
 # Add JUCE as a subdirectory
 set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "Disable building JUCE extras")
 set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Disable building JUCE examples")
-add_subdirectory(../../JUCE JUCE)
+
+# Check if JUCE_PATH is set, otherwise default to a relative path
+if(NOT DEFINED JUCE_PATH)
+    set(JUCE_PATH ../../JUCE CACHE PATH "Path to the JUCE directory")
+endif()
+
+add_subdirectory(${JUCE_PATH} JUCE)
 
 # Force legacy parameter IDs to resolve VST2/VST3 automation conflict
 add_compile_definitions(JUCE_FORCE_USE_LEGACY_PARAM_IDS=1)
 
 # --- Source File Groups ---
 set(CORE_SOURCE_FILES
-    Source/PluginProcessor.cpp
     Source/Generators/RandomGenerator.cpp
     Source/Generators/EuclideanGenerator.cpp
     Source/Generators/DualEuclideanGenerator.cpp
@@ -71,7 +76,10 @@ juce_add_plugin(CreativeMIDIGenerator
     FORMATS VST3 Standalone
 )
 
-target_sources(CreativeMIDIGenerator PRIVATE ${UI_SOURCE_FILES})
+target_sources(CreativeMIDIGenerator PRIVATE
+    Source/PluginProcessor.cpp
+    ${UI_SOURCE_FILES}
+)
 
 target_include_directories(CreativeMIDIGenerator PRIVATE Source)
 
@@ -84,12 +92,18 @@ target_link_libraries(CreativeMIDIGenerator PRIVATE
 )
 
 # --- Headless Test Runner ---
-add_executable(HeadlessTestRunner ${TEST_RUNNER_SOURCE_FILES})
+add_executable(HeadlessTestRunner)
+
+target_sources(HeadlessTestRunner PRIVATE
+    Source/PluginProcessor.cpp
+    ${TEST_RUNNER_SOURCE_FILES}
+)
 
 target_include_directories(HeadlessTestRunner PRIVATE Source)
 
 target_link_libraries(HeadlessTestRunner PRIVATE
     CoreLogic
+    juce::juce_gui_basics # Needed for APVTS and other types used in PluginProcessor
 )
 
 target_compile_definitions(HeadlessTestRunner PRIVATE

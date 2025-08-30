@@ -78,48 +78,6 @@ try {
     Pop-Location
 }
 
-# Build HeadlessTestRunner
-Write-Host "Building headless test runner..." -ForegroundColor Yellow
-try {
-    $result = & cmake --build $BuildPath --target HeadlessTestRunner --config Release 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Build failed for HeadlessTestRunner"
-        Write-Host $result
-        exit 1
-    }
-    Write-Host "HeadlessTestRunner built successfully" -ForegroundColor Green
-} catch {
-    Write-Error "Build error: $($_.Exception.Message)"
-    exit 1
-}
-
-# Find and Run HeadlessTestRunner
-$testExePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "HeadlessTestRunner.exe" | Select-Object -First 1
-if (-not $testExePath) {
-    Write-Error "HeadlessTestRunner.exe not found"
-    exit 1
-}
-
-Write-Host "Found test runner: $($testExePath.FullName)" -ForegroundColor Cyan
-Write-Host "Now running headless tests..." -ForegroundColor Yellow
-try {
-    # Execute and capture output. We don't use 2>&1 here to separate stdout and stderr.
-    $testResult = & $testExePath.FullName
-    $exitCode = $LASTEXITCODE
-
-    Write-Host $testResult
-    Write-Host "Tests finished with exit code: $exitCode" -ForegroundColor Yellow
-
-    if ($exitCode -ne 0) {
-        Write-Error "Some tests failed. Halting script."
-        exit $exitCode
-    }
-} catch {
-    Write-Error "Test execution failed: $($_.Exception.Message)"
-    exit 1
-}
-
-
 # Build standalone app
 Write-Host "Building standalone application..." -ForegroundColor Yellow
 try {
@@ -129,27 +87,26 @@ try {
         Write-Host $result
         exit 1
     }
-    Write-Host "Build completed successfully" -ForegroundColor Green
+    Write-Host "Standalone build completed successfully" -ForegroundColor Green
 } catch {
     Write-Error "Build error: $($_.Exception.Message)"
     exit 1
 }
 
-# Find executable
-$exePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1
-
-if (-not $exePath) {
-    Write-Error "Standalone executable not found"
-    exit 1
-}
-
-Write-Host "Found executable: $($exePath.FullName)" -ForegroundColor Cyan
-
-# Run standalone app
-Write-Host "--- LAUNCHING APPLICATION ---" -ForegroundColor Green
+# Build VST3 plugin
+Write-Host "Building VST3 plugin..." -ForegroundColor Yellow
 try {
-    & $exePath.FullName
+    $result = & cmake --build $BuildPath --target CreativeMIDIGenerator_VST3 --config Release 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Build failed for VST3"
+        Write-Host $result
+        exit 1
+    }
+    Write-Host "VST3 build completed successfully" -ForegroundColor Green
 } catch {
-    Write-Error "Application execution failed: $($_.Exception.Message)"
+    Write-Error "Build error: $($_.Exception.Message)"
     exit 1
 }
+
+Write-Host "All builds finished successfully." -ForegroundColor Green
+Write-Host "You can find the artifacts in: $BuildPath"

@@ -332,7 +332,9 @@ juce::String HeadlessTester::testLooperAutoRecapture()
              return formatTestResult("Looper Auto-Recapture", false, "Initial loop duration invalid");
 
         // 3. Simulate time passing
-        const double beatsToSimulate = loopDuration * 2.5;
+        // We simulate a bit longer (4.5 loops) to ensure the scheduled action has plenty of time
+        // to be triggered by the audio thread simulation, avoiding race conditions in the test.
+        const double beatsToSimulate = loopDuration * 4.5;
         const double samplesPerBeat = 44100.0 * 60.0 / 120.0;
         const int totalSamplesToSimulate = static_cast<int>(beatsToSimulate * samplesPerBeat);
         const int blockSize = 512;

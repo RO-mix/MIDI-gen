@@ -287,7 +287,10 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         // So, we create a temporary buffer of what will be played, and record that.
         juce::MidiBuffer finalMidiForRecording;
         finalMidiForRecording.addEvents(looperPlaybackMidi, 0, -1, 0);
-        finalMidiForRecording.addEvents(generatedMidi, 0, -1, 0);
+        if (apvts.getRawParameterValue("RECORD_GENERATOR_OUTPUT")->load())
+        {
+            finalMidiForRecording.addEvents(generatedMidi, 0, -1, 0);
+        }
         finalMidiForRecording.addEvents(thruMessages, 0, -1, 0);
 
         for (const auto metadata : finalMidiForRecording)
@@ -878,6 +881,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     add(std::make_unique<juce::AudioParameterChoice>("LOOPER_RECAPTURE_PERIOD", "Looper Recapture Period", juce::StringArray{"Off", "Every 2 loops", "Every 3 loops", "Every 4 loops", "Every 6 loops", "Every 8 loops"}, 0));
     add(std::make_unique<juce::AudioParameterChoice>("LOOPER_RECORD_LENGTH", "Looper Record Length", juce::StringArray{"1 bar", "2 bars", "4 bars", "8 bars", "16 bars", "32 bars", "64 bars"}, 2));
     add(std::make_unique<juce::AudioParameterBool>("LOOPER_RECORD_OVERDUB", "Looper Record Overdub", false));
+    add(std::make_unique<juce::AudioParameterBool>("RECORD_GENERATOR_OUTPUT", "Record Generator Output", true));
     add(std::make_unique<juce::AudioParameterChoice>("LOOPER_ACTION_QUANTIZE", "Looper Action Quantize", juce::StringArray{"Instant", "Next 1/2", "Next Beat", "Next Bar"}, 3));
     add(std::make_unique<juce::AudioParameterFloat>("LOOPER_INTENSITY_BASS", "Looper Intensity Bass", 0.0f, 1.0f, 1.0f));
     add(std::make_unique<juce::AudioParameterFloat>("LOOPER_INTENSITY_MID", "Looper Intensity Mid", 0.0f, 1.0f, 1.0f));

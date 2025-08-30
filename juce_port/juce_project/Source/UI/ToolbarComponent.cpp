@@ -4,17 +4,10 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     : audioProcessor(p)
 {
     // === Row 1: Playback and MIDI ===
-    addAndMakeVisible(startButton);
-    startButton.setButtonText("Start");
-    startButton.onClick = [this] {
-        audioProcessor.togglePlayback();
-        bool isPlaying = audioProcessor.isPlaying();
-        startButton.setButtonText(isPlaying ? "Stop" : "Start");
-    };
-
     addAndMakeVisible(bpmSlider);
     bpmSlider.setSliderStyle(juce::Slider::LinearHorizontal);
     bpmSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
+    bpmSlider.setTooltip("Задает темп проекта в ударах в минуту (BPM).");
     bpmAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "BPM", bpmSlider);
 
     addAndMakeVisible(bpmLabel);
@@ -23,6 +16,7 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     addAndMakeVisible(midiChannelSlider);
     midiChannelSlider.setSliderStyle(juce::Slider::IncDecButtons);
     midiChannelSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 40, 20);
+    midiChannelSlider.setTooltip("Выбор MIDI-канала для вывода (1-16).");
     midiChannelAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "MIDI_CHANNEL", midiChannelSlider);
 
     addAndMakeVisible(midiChannelLabel);
@@ -35,6 +29,7 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     {
         rootNoteCombo.addItemList(choiceParam->choices, 1);
     }
+    rootNoteCombo.setTooltip("Выбор основной ноты (тоники) для музыкального лада.");
     rootNoteAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "ROOT_NOTE", rootNoteCombo);
 
     addAndMakeVisible(scaleCombo);
@@ -42,6 +37,7 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     {
         scaleCombo.addItemList(choiceParam->choices, 1);
     }
+    scaleCombo.setTooltip("Выбор музыкального лада, который будет использоваться генераторами.");
     scaleAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "SCALE", scaleCombo);
 
     // Preset Controls
@@ -55,10 +51,12 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
 
     addAndMakeVisible(presetCombo);
     presetCombo.onChange = [this] { loadPreset(presetCombo.getSelectedId()); };
+    presetCombo.setTooltip("Загрузить сохраненный пресет.");
     scanForPresets(); // Initial scan
 
     addAndMakeVisible(savePresetButton);
     savePresetButton.setButtonText("Save Preset");
+    savePresetButton.setTooltip("Сохранить текущие настройки как новый пресет.");
     savePresetButton.onClick = [this] { savePreset(); };
 
     audioProcessor.addListener(this);
@@ -71,7 +69,8 @@ ToolbarComponent::~ToolbarComponent()
 
 void ToolbarComponent::playbackStateChanged(bool isPlaying)
 {
-    startButton.setButtonText(isPlaying ? "Stop" : "Start");
+    // The main start/stop button is now in the Generator section.
+    juce::ignoreUnused(isPlaying);
 }
 
 void ToolbarComponent::looperStateChanged(bool isPlaying)
@@ -89,35 +88,25 @@ void ToolbarComponent::paint(juce::Graphics& g)
 void ToolbarComponent::resized()
 {
     auto bounds = getLocalBounds().reduced(10);
-    auto row = bounds.removeFromTop(40);
-    int x = 0;
-    int spacing = 10;
-    int labelWidth = 60;
-    int componentWidth = 100;
 
-    // --- Row 1: Playback and MIDI ---
-    startButton.setBounds(row.removeFromLeft(80));
-    row.removeFromLeft(spacing);
+    // Use FlexBox for a more robust and cleaner layout
+    juce::FlexBox fb;
+    fb.flexWrap = juce::FlexBox::Wrap::wrap;
+    fb.justifyContent = juce::FlexBox::JustifyContent::flexStart;
+    fb.alignContent = juce::FlexBox::AlignContent::flexStart;
 
-    bpmLabel.setBounds(row.removeFromLeft(labelWidth));
-    bpmSlider.setBounds(row.removeFromLeft(componentWidth + 50)); // Wider for text box
-    row.removeFromLeft(spacing);
+    // Add all toolbar items to the FlexBox
+    fb.items.add(juce::FlexItem(bpmLabel).withWidth(60));
+    fb.items.add(juce::FlexItem(bpmSlider).withWidth(150).withMargin({0, 10, 0, 0}));
+    fb.items.add(juce::FlexItem(midiChannelLabel).withWidth(60));
+    fb.items.add(juce::FlexItem(midiChannelSlider).withWidth(100).withMargin({0, 20, 0, 0}));
 
-    midiChannelLabel.setBounds(row.removeFromLeft(labelWidth));
-    midiChannelSlider.setBounds(row.removeFromLeft(componentWidth));
+    fb.items.add(juce::FlexItem(rootNoteCombo).withWidth(70));
+    fb.items.add(juce::FlexItem(scaleCombo).withWidth(140).withMargin({0, 10, 0, 0}));
+    fb.items.add(juce::FlexItem(presetCombo).withWidth(140).withMargin({0, 10, 0, 0}));
+    fb.items.add(juce::FlexItem(savePresetButton).withWidth(100));
 
-    // --- Row 2: Musical Context & Presets ---
-    row = bounds.removeFromTop(40);
-
-    rootNoteCombo.setBounds(row.removeFromLeft(labelWidth + componentWidth - 20));
-    row.removeFromLeft(spacing);
-
-    scaleCombo.setBounds(row.removeFromLeft(labelWidth + componentWidth + 20));
-    row.removeFromLeft(spacing);
-
-    presetCombo.setBounds(row.removeFromLeft(componentWidth + 20));
-    row.removeFromLeft(spacing);
-    savePresetButton.setBounds(row.removeFromLeft(componentWidth));
+    fb.performLayout(bounds.toFloat());
 }
 
 void ToolbarComponent::scanForPresets()

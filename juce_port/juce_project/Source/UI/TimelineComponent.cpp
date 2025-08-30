@@ -152,24 +152,27 @@ void TimelineComponent::paint(juce::Graphics& g)
 
         // --- Draw Notes ---
 
-        // 1. Get all notes and determine vertical range
+        // 1. Get all notes and determine a STABLE vertical range from the whole buffer
         auto& looperNotes = audioProcessor.getLooperNotes();
         auto& liveNotes = audioProcessor.getLiveNotes();
 
         int minNote = 127, maxNote = 0;
-        for (const auto& note : looperNotes) {
-            minNote = juce::jmin(minNote, note.message.getNoteNumber());
-            maxNote = juce::jmax(maxNote, note.message.getNoteNumber());
-        }
-        if (mode == TimelineMode::Recording) {
-            for (const auto& note : liveNotes) {
-                minNote = juce::jmin(minNote, note.noteNumber);
-                maxNote = juce::jmax(maxNote, note.noteNumber);
+        if (!looperNotes.empty())
+        {
+            for (const auto& note : looperNotes) {
+                minNote = juce::jmin(minNote, note.message.getNoteNumber());
+                maxNote = juce::jmax(maxNote, note.message.getNoteNumber());
             }
+        }
+        else
+        {
+            // Default view range if buffer is empty
+            minNote = 48;
+            maxNote = 72;
         }
         int noteRange = juce::jmax(24, maxNote - minNote);
 
-        // 2. Draw Looper Notes
+        // 2. Draw Looper Notes (now Orange)
         for (const auto& note : looperNotes)
         {
             float x = (float)(note.beatTime / loopDuration) * getWidth();
@@ -181,13 +184,13 @@ void TimelineComponent::paint(juce::Graphics& g)
             g.fillRect(x + 1, y + 1, w, noteHeight);
 
             auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.5f, 1.0f);
-            g.setColour(juce::Colour::fromHSV(0.58f, 0.8f, brightness, 1.0f)); // Blue-ish for looper
+            g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness, 1.0f)); // Orange
             g.fillRect(x, y, w, noteHeight);
-            g.setColour(juce::Colour::fromHSV(0.58f, 0.8f, brightness * 0.8f, 1.0f));
+            g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness * 0.8f, 1.0f));
             g.drawRect(x, y, w, noteHeight);
         }
 
-        // 3. Draw Live Notes if Recording
+        // 3. Draw Live Notes if Recording (now Red)
         if (mode == TimelineMode::Recording)
         {
             for (const auto& note : liveNotes)
@@ -204,9 +207,9 @@ void TimelineComponent::paint(juce::Graphics& g)
                 g.fillRect(x + 1, y + 1, w, noteHeight);
 
                 auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.5f, 1.0f);
-                g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness, 1.0f)); // Orange for live notes
+                g.setColour(juce::Colour::fromHSV(0.0f, 0.9f, brightness, 1.0f)); // Red
                 g.fillRect(x, y, w, noteHeight);
-                g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness * 0.8f, 1.0f));
+                g.setColour(juce::Colour::fromHSV(0.0f, 0.9f, brightness * 0.8f, 1.0f));
                 g.drawRect(x, y, w, noteHeight);
             }
         }
@@ -234,6 +237,26 @@ void TimelineComponent::resized()
 
 void TimelineComponent::timerCallback()
 {
-    // This will trigger a repaint to update the playhead animation.
-    repaint();
+    // Determine the current mode, just like in the paint() method.
+    const bool isLiveMode = !audioProcessor.isLooperPlaying() && !audioProcessor.isLooperRecording();
+
+    bool shouldRepaint = false;
+    if (isLiveMode)
+    {
+        // In live mode, only repaint if the generator is playing, which drives the scrolling.
+        if (audioProcessor.isPlaying())
+        {
+            shouldRepaint = true;
+        }
+    }
+    else
+    {
+        // In looper modes (playing or recording), we always want to see the playhead move.
+        shouldRepaint = true;
+    }
+
+    if (shouldRepaint)
+    {
+        repaint();
+    }
 }

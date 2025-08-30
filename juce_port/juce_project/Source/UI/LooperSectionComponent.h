@@ -62,6 +62,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> recapturePeriodAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> recordLengthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> recordOverdubAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> recordGeneratorAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> actionQuantizeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> bassIntensityAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> midIntensityAttachment;

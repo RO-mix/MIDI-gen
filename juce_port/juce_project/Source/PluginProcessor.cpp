@@ -1,5 +1,8 @@
 #include "PluginProcessor.h"
+
+#if !IS_HEADLESS_BUILD
 #include "PluginEditor.h"
+#endif
 
 //==============================================================================
 CreativeMidiGeneratorAudioProcessor::CreativeMidiGeneratorAudioProcessor()
@@ -386,12 +389,20 @@ double CreativeMidiGeneratorAudioProcessor::getLooperDurationInBeats() const
 //==============================================================================
 bool CreativeMidiGeneratorAudioProcessor::hasEditor() const
 {
+#if IS_HEADLESS_BUILD
+    return false;
+#else
     return true;
+#endif
 }
 
 juce::AudioProcessorEditor* CreativeMidiGeneratorAudioProcessor::createEditor()
 {
+#if IS_HEADLESS_BUILD
+    return nullptr;
+#else
     return new CreativeMidiGeneratorAudioProcessorEditor (*this);
+#endif
 }
 
 //==============================================================================

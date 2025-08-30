@@ -95,4 +95,5 @@ target_link_libraries(HeadlessTestRunner PRIVATE
 target_compile_definitions(HeadlessTestRunner PRIVATE
     JUCE_STANDALONE_APPLICATION=1
     JUCE_USE_CURL=0
+    IS_HEADLESS_BUILD=1
 )

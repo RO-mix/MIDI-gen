@@ -92,23 +92,31 @@ fi
 
 echo -e "${GREEN}All tests passed successfully!${NC}"
 
-# --- Build standalone app ---
-echo -e "${YELLOW}Building standalone application...${NC}"
-cmake --build "$BUILD_PATH" --target CreativeMIDIGenerator_Standalone --config Release
+# --- Build all plugin formats (VST3, Standalone, etc.) ---
+echo -e "${YELLOW}Building all plugin formats...${NC}"
+cmake --build "$BUILD_PATH" --target CreativeMIDIGenerator --config Release
 if [ $? -ne 0 ]; then
-    echo -e "${RED}Build failed for Standalone App${NC}"
+    echo -e "${RED}Build failed for plugin formats${NC}"
     exit 1
 fi
-echo -e "${GREEN}Build completed successfully${NC}"
+echo -e "${GREEN}Plugin formats built successfully${NC}"
 
-# --- Find executable ---
+# --- Verify Standalone executable exists ---
+# The find command is still useful to confirm the build produced something.
 APP_EXE_PATH=$(find "$BUILD_PATH" -name "CreativeMIDIGenerator" -type f -executable)
 if [ -z "$APP_EXE_PATH" ]; then
-    echo -e "${RED}Standalone executable not found${NC}"
+    echo -e "${RED}Standalone executable not found after build. This might indicate a problem.${NC}"
     exit 1
 fi
 
-echo -e "${CYAN}Found executable: $APP_EXE_PATH${NC}"
+echo -e "${CYAN}Found Standalone executable: $APP_EXE_PATH${NC}"
+# We can also check for the VST3
+VST3_PATH=$(find "$BUILD_PATH" -name "CreativeMIDIGenerator.vst3" -type d)
+if [ -z "$VST3_PATH" ]; then
+    echo -e "${YELLOW}Warning: VST3 plugin not found after build.${NC}"
+else
+    echo -e "${CYAN}Found VST3 plugin: $VST3_PATH${NC}"
+fi
 echo -e "${GREEN}--- SCRIPT FINISHED ---${NC}"
 # Note: The original script tried to launch the GUI app.
 # This is not practical in a headless environment, so we'll just confirm it builds.

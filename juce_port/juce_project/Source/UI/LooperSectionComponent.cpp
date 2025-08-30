@@ -162,10 +162,11 @@ void LooperSectionComponent::resized()
     // Row 3
     auto row3 = bounds.removeFromTop(rowHeight);
     recordButton.setBounds(row3.removeFromLeft(85));
-    clearButton.setBounds(row3.removeFromLeft(85));
     recordLengthCombo.setBounds(row3.removeFromLeft(130));
     recordOverdubToggle.setBounds(row3.removeFromLeft(80));
     actionQuantizeCombo.setBounds(row3.removeFromLeft(130));
+    row3.removeFromLeft(spacing); // Add some space
+    clearButton.setBounds(row3.removeFromLeft(85));
     saveButton.setBounds(row3.removeFromLeft(85));
     bounds.removeFromTop(spacing);
 

@@ -745,8 +745,16 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
             looper_->splitLoop();
             break;
         case LooperAction::Clear:
+            if (looper_)
+            {
+                if (looper_->isPlaybackActive())
+                {
+                    looper_->stopPlayback();
+                    listeners_.call([&](Listener& l) { l.looperStateChanged(false); });
+                }
+                looper_->clear();
+            }
             sendAllNotesOff = true;
-            looper_->clear();
             break;
         case LooperAction::None:
             break;

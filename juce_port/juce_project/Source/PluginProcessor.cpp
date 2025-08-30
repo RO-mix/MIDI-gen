@@ -206,30 +206,68 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         pendingNoteOffs_.addArray(newPendingNotes);
 
         const std::lock_guard<std::mutex> lock(liveNotesMutex);
-        liveNotes.clear();
+
+        // 1. Trim old notes that are off-screen
+        const double viewWidthBeats = 16.0; // Must match TimelineComponent
+        const double cutoffBeat = currentBeat_ - (viewWidthBeats * 2);
+        liveNotes.erase(std::remove_if(liveNotes.begin(), liveNotes.end(),
+                                       [cutoffBeat](const LiveNote& note) {
+                                           return (note.startTime + note.duration) < cutoffBeat;
+                                       }),
+                        liveNotes.end());
+
+        // 2. Process new notes from the generator
         for (const auto metadata : generatedMidi)
         {
             if (metadata.getMessage().isNoteOn())
             {
                 double noteOnBeat = lastBlockBeat + (metadata.samplePosition * beatsPerSample);
-                double noteOffBeat = noteOnBeat + (0.125); // Default duration if no note-off is found
+                double noteDurationBeats = 0.0;
 
-                // Find corresponding note-off
+                // Find corresponding note-off to calculate duration
+                juce::int64 noteOffSample = -1;
+
+                // First, check the current generated buffer
                 for (const auto other_metadata : generatedMidi)
                 {
                     if (other_metadata.getMessage().isNoteOff() &&
                         other_metadata.getMessage().getNoteNumber() == metadata.getMessage().getNoteNumber())
                     {
-                        noteOffBeat = lastBlockBeat + (other_metadata.samplePosition * beatsPerSample);
+                        noteOffSample = totalSamples_ + other_metadata.samplePosition;
                         break;
                     }
+                }
+
+                // If not found, check the pending note-offs from the generator
+                if (noteOffSample == -1)
+                {
+                    for (const auto& pendingOff : newPendingNotes)
+                    {
+                        if (pendingOff.noteNumber == metadata.getMessage().getNoteNumber())
+                        {
+                            noteOffSample = pendingOff.sampleOffTime;
+                            break;
+                        }
+                    }
+                }
+
+                if (noteOffSample != -1)
+                {
+                    juce::int64 noteOnSample = totalSamples_ + metadata.samplePosition;
+                    juce::int64 durationSamples = noteOffSample - noteOnSample;
+                    noteDurationBeats = durationSamples / samplesPerBeat_;
+                }
+                else
+                {
+                    // Fallback for safety, though it shouldn't be needed with correct generator logic
+                    noteDurationBeats = 0.125;
                 }
 
                 liveNotes.push_back({
                     metadata.getMessage().getNoteNumber(),
                     metadata.getMessage().getVelocity(),
                     noteOnBeat,
-                    noteOffBeat - noteOnBeat
+                    noteDurationBeats
                 });
             }
         }

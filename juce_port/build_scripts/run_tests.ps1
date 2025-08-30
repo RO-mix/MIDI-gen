@@ -120,36 +120,41 @@ try {
 }
 
 
-# Build standalone app
-Write-Host "Building standalone application..." -ForegroundColor Yellow
+# Build all plugin formats
+Write-Host "Building all plugin formats (VST3, Standalone)..." -ForegroundColor Yellow
 try {
-    $result = & cmake --build $BuildPath --target CreativeMIDIGenerator_Standalone --config Release 2>&1
+    $result = & cmake --build $BuildPath --target CreativeMIDIGenerator --config Release 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Build failed for Standalone App"
+        Write-Error "Build failed for plugin formats"
         Write-Host $result
         exit 1
     }
-    Write-Host "Build completed successfully" -ForegroundColor Green
+    Write-Host "Plugin formats built successfully" -ForegroundColor Green
 } catch {
     Write-Error "Build error: $($_.Exception.Message)"
     exit 1
 }
 
-# Find executable
+# Verify build artifacts
 $exePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1
-
 if (-not $exePath) {
     Write-Error "Standalone executable not found"
+} else {
+    Write-Host "Found Standalone executable: $($exePath.FullName)" -ForegroundColor Cyan
+}
+
+$vst3Path = Get-ChildItem -Path $BuildPath -Recurse -Filter "CreativeMIDIGenerator.vst3" | Select-Object -First 1
+if (-not $vst3Path) {
+    Write-Host "Warning: VST3 plugin not found" -ForegroundColor Yellow
+} else {
+    Write-Host "Found VST3 plugin: $($vst3Path.FullName)" -ForegroundColor Cyan
+}
+
+if (-not $exePath) {
+    # Fail the script if the main executable is missing
     exit 1
 }
 
-Write-Host "Found executable: $($exePath.FullName)" -ForegroundColor Cyan
-
-# Run standalone app
-Write-Host "--- LAUNCHING APPLICATION ---" -ForegroundColor Green
-try {
-    & $exePath.FullName
-} catch {
-    Write-Error "Application execution failed: $($_.Exception.Message)"
-    exit 1
-}
+# Run standalone app (optional, for local testing)
+Write-Host "--- SCRIPT FINISHED ---" -ForegroundColor Green
+Write-Host "Note: To run the standalone app, execute $($exePath.FullName)"

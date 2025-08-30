@@ -28,10 +28,8 @@ private:
     juce::String testRandomGeneratorParameters();
     juce::String testScalesBasic();
     juce::String testScalesIntervals();
-    juce::String testEuclideanGeneratorBasic();
-    juce::String testEuclideanGeneratorPatterns();
-    juce::String testDualEuclideanGeneratorBasic();
-    juce::String testDualEuclideanGeneratorPatterns();
+    juce::String testEuclideanGeneratorLogic();
+    juce::String testDualEuclideanGeneratorLogic();
     juce::String testLooperBasic();
     juce::String testLooperRecording();
     juce::String testLooperCapture();

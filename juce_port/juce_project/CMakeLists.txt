@@ -84,15 +84,19 @@ target_link_libraries(CreativeMIDIGenerator PRIVATE
 )
 
 # --- Headless Test Runner ---
-add_executable(HeadlessTestRunner ${TEST_RUNNER_SOURCE_FILES})
+juce_add_console_app(HeadlessTestRunner
+    NEEDS_CURL TRUE
+)
 
-target_include_directories(HeadlessTestRunner PRIVATE Source)
+target_sources(HeadlessTestRunner PRIVATE ${TEST_RUNNER_SOURCE_FILES})
 
 target_link_libraries(HeadlessTestRunner PRIVATE
     CoreLogic
+    juce::juce_audio_devices
 )
 
 target_compile_definitions(HeadlessTestRunner PRIVATE
-    JUCE_STANDALONE_APPLICATION=1
-    JUCE_USE_CURL=0
+    JUCE_HEADLESS=1
+    JUCE_GUI_BASICS_INCLUDE_X11=0
+    JUCE_WEB_BROWSER=0
 )

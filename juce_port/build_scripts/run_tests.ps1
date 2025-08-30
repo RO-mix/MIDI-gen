@@ -140,14 +140,14 @@ try {
 }
 
 # Verify build artifacts
-$exePath = Get-ChildItem -Path $BuildPath -Recurse -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1
+$exePath = Get-ChildItem -Path $BuildPath -Recurse -File -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1
 if (-not $exePath) {
     Write-Error "Standalone executable not found"
 } else {
     Write-Host "Found Standalone executable: $($exePath.FullName)" -ForegroundColor Cyan
 }
 
-$vst3Path = Get-ChildItem -Path $BuildPath -Recurse -Filter "CreativeMIDIGenerator.vst3" | Select-Object -First 1
+$vst3Path = Get-ChildItem -Path $BuildPath -Recurse -Directory -Filter "CreativeMIDIGenerator.vst3" | Select-Object -First 1
 if (-not $vst3Path) {
     Write-Host "Warning: VST3 plugin not found" -ForegroundColor Yellow
 } else {

@@ -42,9 +42,9 @@ juce::Array<PendingNoteOff> DualEuclideanGenerator::process(juce::MidiBuffer& mi
     float durationBiasB = apvts.getRawParameterValue("DUAL_EUCLIDEAN_DURATION_BIAS_B")->load();
 
     // Update patterns if needed
-    if (stepsA != static_cast<int>(patternA_.size()) || pulsesA != std::count(patternA_.begin(), patternA_.end(), true))
+    if (stepsA != static_cast<int>(patternA_.size()) || pulsesA != static_cast<int>(std::count(patternA_.begin(), patternA_.end(), true)))
         updatePattern(patternA_, stepsA, pulsesA);
-    if (stepsB != static_cast<int>(patternB_.size()) || pulsesB != std::count(patternB_.begin(), patternB_.end(), true))
+    if (stepsB != static_cast<int>(patternB_.size()) || pulsesB != static_cast<int>(std::count(patternB_.begin(), patternB_.end(), true)))
         updatePattern(patternB_, stepsB, pulsesB);
 
     // Map rateChoice to actual beat values

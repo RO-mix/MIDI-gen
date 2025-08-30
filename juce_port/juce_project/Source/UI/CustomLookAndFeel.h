@@ -27,7 +27,7 @@ public:
             g.fillRect(bounds);
 
             g.setColour(juce::Colours::white.withAlpha(0.8f));
-            g.setFont(14.0f);
+            g.setFont(juce::FontOptions(14.0f));
             g.drawText("OVR", bounds, juce::Justification::centred, 1);
         }
         else

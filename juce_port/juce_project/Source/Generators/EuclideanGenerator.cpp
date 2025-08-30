@@ -30,7 +30,7 @@ juce::Array<PendingNoteOff> EuclideanGenerator::process(juce::MidiBuffer& midiMe
     double bpm = *apvts.getRawParameterValue("BPM");
 
     // Update pattern if needed
-    if (steps != (int)pattern_.size() || pulses != std::count(pattern_.begin(), pattern_.end(), true))
+    if (steps != static_cast<int>(pattern_.size()) || pulses != static_cast<int>(std::count(pattern_.begin(), pattern_.end(), true)))
     {
         updatePattern(steps, pulses);
     }

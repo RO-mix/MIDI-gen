@@ -46,7 +46,7 @@ void GeneratorSectionComponent::paint(juce::Graphics& g)
     g.drawVerticalLine(bounds.getX(), (float)bounds.getY(), (float)bounds.getBottom());
     g.drawVerticalLine(bounds.getRight() - 1, (float)bounds.getY(), (float)bounds.getBottom());
     g.drawHorizontalLine(bounds.getBottom() - 1, (float)bounds.getX(), (float)bounds.getRight());
-    g.setFont(18.0f);
+    g.setFont(juce::FontOptions(18.0f));
     g.drawText("GENERATOR", getLocalBounds().removeFromTop(30), juce::Justification::centred, false);
 }
 

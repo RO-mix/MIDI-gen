@@ -70,6 +70,8 @@ public:
     const std::vector<RecordedNote>& getNotes() const { return recordedNotes; }
     double getPlaybackProgress() const;
     double getDurationInBeats() const { return loopEnd - loopStart; }
+    double getRecordingStartTime() const { return recordingStartTime_; }
+    double getMaxRecordLength() const { return maxRecordLengthBeats_; }
 
 
     // Управление записью/воспроизведением

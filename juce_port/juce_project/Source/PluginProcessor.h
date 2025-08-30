@@ -97,6 +97,7 @@ public:
     // Getters for Timeline UI
     const std::vector<Looper::RecordedNote>& getLooperNotes() const;
     double getLooperPlaybackProgress() const;
+    double getLooperRecordProgress() const;
 
     struct LiveNote {
         int noteNumber;

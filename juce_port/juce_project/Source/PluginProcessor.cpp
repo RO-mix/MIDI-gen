@@ -211,12 +211,25 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
         {
             if (metadata.getMessage().isNoteOn())
             {
-                double beatInBlock = metadata.samplePosition * beatsPerSample;
+                double noteOnBeat = lastBlockBeat + (metadata.samplePosition * beatsPerSample);
+                double noteOffBeat = noteOnBeat + (0.125); // Default duration if no note-off is found
+
+                // Find corresponding note-off
+                for (const auto other_metadata : generatedMidi)
+                {
+                    if (other_metadata.getMessage().isNoteOff() &&
+                        other_metadata.getMessage().getNoteNumber() == metadata.getMessage().getNoteNumber())
+                    {
+                        noteOffBeat = lastBlockBeat + (other_metadata.samplePosition * beatsPerSample);
+                        break;
+                    }
+                }
+
                 liveNotes.push_back({
                     metadata.getMessage().getNoteNumber(),
                     metadata.getMessage().getVelocity(),
-                    lastBlockBeat + beatInBlock,
-                    0.25 // Default duration for visualization
+                    noteOnBeat,
+                    noteOffBeat - noteOnBeat
                 });
             }
         }
@@ -526,6 +539,21 @@ const std::vector<Looper::RecordedNote>& CreativeMidiGeneratorAudioProcessor::ge
 double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const
 {
     return looper_ ? looper_->getPlaybackProgress() : 0.0;
+}
+
+double CreativeMidiGeneratorAudioProcessor::getLooperRecordProgress() const
+{
+    if (looper_ && looper_->isRecordingActive())
+    {
+        double recStartTime = looper_->getRecordingStartTime();
+        double recMaxLength = looper_->getMaxRecordLength();
+        if (recMaxLength > 0)
+        {
+            double progress = (currentBeat_ - recStartTime) / recMaxLength;
+            return juce::jlimit(0.0, 1.0, progress);
+        }
+    }
+    return 0.0;
 }
 
 

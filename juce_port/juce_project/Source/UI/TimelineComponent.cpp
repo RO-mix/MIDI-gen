@@ -85,12 +85,16 @@ void TimelineComponent::paint(juce::Graphics& g)
                 float noteHeight = (float)getHeight() / (noteRange + 1);
                 float y = (1.0f - (float)(note.noteNumber - minNote) / noteRange) * getHeight() - noteHeight;
 
-                g.setColour(juce::Colours::black.withAlpha(0.4f));
-                g.fillRect(x + 2, y + 2, w, noteHeight);
+                // Draw shadow/outline
+                g.setColour(juce::Colours::black.withAlpha(0.5f));
+                g.fillRect(x + 1, y + 1, w, noteHeight);
 
-                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.6f, 1.0f);
-                g.setColour(juce::Colour::fromHSV(0.08f, 0.9f, brightness, 1.0f));
+                // Draw note with velocity-based brightness
+                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.5f, 1.0f);
+                g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness, 1.0f));
                 g.fillRect(x, y, w, noteHeight);
+                g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness * 0.8f, 1.0f));
+                g.drawRect(x, y, w, noteHeight);
             }
         }
         // Draw "now" cursor in the middle
@@ -173,12 +177,14 @@ void TimelineComponent::paint(juce::Graphics& g)
             float noteHeight = (float)getHeight() / (noteRange + 1);
             float y = (1.0f - (float)(note.message.getNoteNumber() - minNote) / noteRange) * getHeight() - noteHeight;
 
-            g.setColour(juce::Colours::black.withAlpha(0.4f));
-            g.fillRect(x + 2, y + 2, w, noteHeight);
+            g.setColour(juce::Colours::black.withAlpha(0.5f));
+            g.fillRect(x + 1, y + 1, w, noteHeight);
 
-            auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.6f, 1.0f);
+            auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.5f, 1.0f);
             g.setColour(juce::Colour::fromHSV(0.58f, 0.8f, brightness, 1.0f)); // Blue-ish for looper
             g.fillRect(x, y, w, noteHeight);
+            g.setColour(juce::Colour::fromHSV(0.58f, 0.8f, brightness * 0.8f, 1.0f));
+            g.drawRect(x, y, w, noteHeight);
         }
 
         // 3. Draw Live Notes if Recording
@@ -194,20 +200,30 @@ void TimelineComponent::paint(juce::Graphics& g)
                 float noteHeight = (float)getHeight() / (noteRange + 1);
                 float y = (1.0f - (float)(note.noteNumber - minNote) / noteRange) * getHeight() - noteHeight;
 
-                g.setColour(juce::Colours::black.withAlpha(0.4f));
-                g.fillRect(x + 2, y + 2, w, noteHeight);
+                g.setColour(juce::Colours::black.withAlpha(0.5f));
+                g.fillRect(x + 1, y + 1, w, noteHeight);
 
-                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.6f, 1.0f);
-                g.setColour(juce::Colour::fromHSV(0.0f, 0.9f, brightness, 1.0f)); // Red-ish for recording
+                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.5f, 1.0f);
+                g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness, 1.0f)); // Orange for live notes
                 g.fillRect(x, y, w, noteHeight);
+                g.setColour(juce::Colour::fromHSV(0.083f, 0.9f, brightness * 0.8f, 1.0f));
+                g.drawRect(x, y, w, noteHeight);
             }
         }
 
         // Draw Playhead
-        float progress = (float)audioProcessor.getLooperPlaybackProgress();
-        g.setColour(mode == TimelineMode::Recording ? juce::Colours::red : juce::Colours::white);
-        g.setOpacity(0.7f);
-        g.drawVerticalLine(progress * getWidth(), 0.0f, (float)getHeight());
+        if (mode == TimelineMode::Recording)
+        {
+            float progress = (float)audioProcessor.getLooperRecordProgress();
+            g.setColour(juce::Colours::red.withAlpha(0.8f));
+            g.drawVerticalLine(progress * getWidth(), 0.0f, (float)getHeight());
+        }
+        else // Playback mode
+        {
+            float progress = (float)audioProcessor.getLooperPlaybackProgress();
+            g.setColour(juce::Colours::white.withAlpha(0.7f));
+            g.drawVerticalLine(progress * getWidth(), 0.0f, (float)getHeight());
+        }
     }
 }
 

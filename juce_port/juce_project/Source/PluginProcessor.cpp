@@ -753,14 +753,25 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                     pendingNoteOffs_.clear(); // A more targeted way to kill generator notes.
                 }
 
-                auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
-                double recordLengthInBeats = 16.0;
-                if (lengthParam)
+                bool isExtendMode = apvts.getRawParameterValue("LOOPER_EXTEND_MODE")->load() > 0.5f;
+                double recordLengthInBeats = 16.0; // Default
+
+                if (isExtendMode && looper_->isPlaybackActive() && looper_->getDurationInBeats() > 0)
                 {
-                    int choice = static_cast<int>(lengthParam->load());
-                    double lengthMap[] = { 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0 };
-                    if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
-                        recordLengthInBeats = lengthMap[choice];
+                    // In extend mode over an existing loop, record indefinitely until user stops.
+                    recordLengthInBeats = 1.0e9; // A very large number for "infinite"
+                }
+                else
+                {
+                    // Standard behavior: use the length from the dropdown.
+                    auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
+                    if (lengthParam)
+                    {
+                        int choice = static_cast<int>(lengthParam->load());
+                        double lengthMap[] = { 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0 };
+                        if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
+                            recordLengthInBeats = lengthMap[choice];
+                    }
                 }
 
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));
@@ -897,6 +908,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout CreativeMidiGeneratorAudioPr
     // === Looper ===
     add(std::make_unique<juce::AudioParameterBool>("LOOPER_THROUGH", "Looper Through", false));
     add(std::make_unique<juce::AudioParameterBool>("LOOPER_PAD_MODE", "Looper Pad Mode", false));
+    add(std::make_unique<juce::AudioParameterBool>("LOOPER_EXTEND_MODE", "Looper Extend Mode", false));
     add(std::make_unique<juce::AudioParameterChoice>("LOOPER_QUANTIZE_GRID", "Looper Quantize Grid", juce::StringArray{"Off", "1/4", "1/8", "1/16", "1/32", "1/64"}, 0));
     add(std::make_unique<juce::AudioParameterChoice>("LOOPER_CAPTURE_DURATION", "Looper Capture Duration", juce::StringArray{"1/8 bar", "1/4 bar", "1/2 bar", "1 bar", "2 bars", "4 bars"}, 3));
     add(std::make_unique<juce::AudioParameterBool>("LOOPER_CAPTURE_OVERDUB", "Looper Capture Overdub", false));

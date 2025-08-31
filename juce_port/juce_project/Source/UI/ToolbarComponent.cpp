@@ -4,7 +4,7 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     : audioProcessor(p)
 {
     // === Row 1: Playback and MIDI ===
-#if !JucePlugin_Build_VST3
+#if JucePlugin_Build_Standalone
     addAndMakeVisible(bpmSlider);
     bpmSlider.setSliderStyle(juce::Slider::LinearHorizontal);
     bpmSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
@@ -90,7 +90,7 @@ void ToolbarComponent::resized()
     int componentWidth = 100;
 
     // --- Row 1: Playback and MIDI ---
-#if !JucePlugin_Build_VST3
+#if JucePlugin_Build_Standalone
     bpmLabel.setBounds(row.removeFromLeft(labelWidth));
     bpmSlider.setBounds(row.removeFromLeft(componentWidth + 50)); // Wider for text box
     row.removeFromLeft(spacing);

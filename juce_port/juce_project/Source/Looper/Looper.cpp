@@ -343,7 +343,6 @@ void Looper::startRecording(double maxDuration, bool isOverdub, double currentBe
     {
         clear();
     }
-    isCaptureBuffer = true;
 }
 
 void Looper::stopRecording()
@@ -352,53 +351,108 @@ void Looper::stopRecording()
 
     isRecording = false;
 
-    // Finalize any notes that are still "on" (lacking a note-off)
+    // 1. Finalize all pending notes that were just recorded.
+    // Give them a duration relative to the last recorded beat.
+    double lastNewNoteBeat = 0.0;
     if (!pendingNotes.empty())
     {
-        double endOfLoop = 0.0;
-        if (!recordedNotes.empty())
+        // Find the end time of the last note-on message in this recording pass
+        double maxPendingBeat = 0.0;
+        for (const auto& pendingNote : pendingNotes)
         {
-            endOfLoop = std::max_element(recordedNotes.begin(), recordedNotes.end(),
-                [](const RecordedNote& a, const RecordedNote& b) {
-                    return (a.beatTime + a.durationInBeats) < (b.beatTime + b.durationInBeats);
-                })->beatTime;
+            if (pendingNote.beatTime > maxPendingBeat)
+            {
+                maxPendingBeat = pendingNote.beatTime;
+            }
         }
 
+        // Finalize any notes that are still "on"
         for (auto& pendingNote : pendingNotes)
         {
-            pendingNote.durationInBeats = endOfLoop - pendingNote.beatTime;
+            pendingNote.durationInBeats = maxPendingBeat - pendingNote.beatTime;
             if (pendingNote.durationInBeats <= 0)
             {
-                pendingNote.durationInBeats = 0.25; // Give it a default short duration
+                pendingNote.durationInBeats = 0.25; // Default short duration
             }
-            recordedNotes.push_back(pendingNote);
+            // Normalize the beat time relative to the recording start
+            pendingNote.beatTime -= recordingStartTime_;
+            if (pendingNote.beatTime + pendingNote.durationInBeats > lastNewNoteBeat)
+            {
+                lastNewNoteBeat = pendingNote.beatTime + pendingNote.durationInBeats;
+            }
         }
-        pendingNotes.clear();
     }
 
-    if (recordedNotes.empty())
+    // 2. Check if this was a "fresh" recording (no previous notes).
+    if (pristine_loop_.empty())
     {
+        recordedNotes = pendingNotes;
+        pendingNotes.clear();
+
+        if (recordedNotes.empty())
+        {
+            loopStart = 0.0;
+            loopEnd = 0.0;
+            return;
+        }
+
+        // This is the first recording, so it defines the pristine loop.
+        pristine_loop_ = recordedNotes;
         loopStart = 0.0;
-        loopEnd = 0.0;
+        loopEnd = std::ceil(lastNewNoteBeat * 4.0) / 4.0; // Quantize to nearest 1/16th note up
         return;
     }
 
-    // Normalize beat times and set loop duration
-    double minBeat = recordedNotes.front().beatTime;
-    double maxBeat = 0.0;
+    // 3. This is an overdub on an existing loop.
+    double originalDuration = getDurationInBeats();
+    double newDuration = std::ceil(lastNewNoteBeat * 4.0) / 4.0;
 
-    for (auto& note : recordedNotes)
+    // Check if we need to extend the loop
+    if (newDuration > originalDuration)
     {
-        note.beatTime -= minBeat;
-        if (note.beatTime + note.durationInBeats > maxBeat)
+        // --- Extend Logic ---
+        std::vector<RecordedNote> extendedNotes;
+        int numRepeats = static_cast<int>(std::ceil(newDuration / originalDuration));
+
+        // Tile the original pristine loop to fill the new duration
+        for (int i = 0; i < numRepeats; ++i)
         {
-            maxBeat = note.beatTime + note.durationInBeats;
+            for (const auto& originalNote : pristine_loop_)
+            {
+                RecordedNote newNote = originalNote;
+                newNote.beatTime += i * originalDuration;
+                if (newNote.beatTime < newDuration)
+                {
+                    extendedNotes.push_back(newNote);
+                }
+            }
+        }
+
+        // Add the newly recorded notes on top
+        for (const auto& newNote : pendingNotes)
+        {
+            extendedNotes.push_back(newNote);
+        }
+
+        recordedNotes = extendedNotes;
+        loopEnd = newDuration;
+    }
+    else
+    {
+        // --- Standard Overdub Logic ---
+        // Just add the new notes to the existing recording.
+        for (const auto& newNote : pendingNotes)
+        {
+            // We need to wrap the new note's position within the loop's duration
+            RecordedNote wrappedNote = newNote;
+            wrappedNote.beatTime = fmod(newNote.beatTime, originalDuration);
+            recordedNotes.push_back(wrappedNote);
         }
     }
 
-    loopStart = 0.0;
-    loopEnd = std::ceil(maxBeat * 4.0) / 4.0; // Quantize to nearest 1/16th note up
+    pendingNotes.clear();
 
+    // The combination of the original loop and the new overdub becomes the new "pristine" state.
     pristine_loop_ = recordedNotes;
 }
 
@@ -408,6 +462,7 @@ void Looper::loadFromMidiBuffer(const juce::MidiBuffer& buffer, double sampleRat
     {
         clear();
     }
+    isCaptureBuffer = true;
 
     std::map<int, std::vector<std::pair<double, int>>> noteOnEvents;
 

@@ -63,6 +63,7 @@ public:
     // Геттеры состояния
     bool isRecordingActive() const { return isRecording; }
     bool isPlaybackActive() const { return isPlaying; }
+    bool getIsCaptureBuffer() const { return isCaptureBuffer; }
     bool isRecordingTimeExceeded(double currentBeat) const;
     size_t getRecordedNotesCount() const { return recordedNotes.size(); }
 
@@ -72,7 +73,6 @@ public:
     double getDurationInBeats() const { return loopEnd - loopStart; }
     double getRecordingStartTime() const { return recordingStartTime_; }
     double getMaxRecordLength() const { return maxRecordLengthBeats_; }
-    bool getIsCaptureBuffer() const { return isCaptureBuffer; }
 
 
     // Управление записью/воспроизведением

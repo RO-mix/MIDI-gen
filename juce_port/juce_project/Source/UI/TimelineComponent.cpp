@@ -38,8 +38,35 @@ void TimelineComponent::paint(juce::Graphics& g)
             noteColour = blue;
         }
     }
+    else // Live Mode
+    {
+        // In live mode, we just show a scrolling grid, no notes.
+        const float viewWidthBeats = 16.0f; // Show 4 bars
+        const double gridResolution = 0.25; // 16th notes
+        double currentBeat = audioProcessor.getCurrentBeat();
+        double startBeat = currentBeat - fmod(currentBeat, gridResolution);
 
-    // --- Draw Grid ---
+        for (double beat = startBeat; beat < currentBeat + viewWidthBeats + gridResolution; beat += gridResolution)
+        {
+            float x = getWidth() * (float)((beat - currentBeat) / viewWidthBeats);
+            if (x < 0 || x > getWidth()) continue;
+
+            const bool isBarLine = (fmod(beat, 4.0) < 0.001);
+            const bool isBeatLine = (fmod(beat, 1.0) < 0.001);
+
+            if (isBarLine) g.setColour(juce::Colours::grey);
+            else if (isBeatLine) g.setColour(juce::Colours::dimgrey);
+            else g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
+
+            g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
+        }
+        g.setColour(juce::Colours::white.withAlpha(0.7f));
+        g.drawVerticalLine(juce::roundToInt(getWidth() * 0.5f), 0.0f, (float)getHeight());
+        g.drawRect(getLocalBounds(), 1);
+        return; // End paint here for live mode
+    }
+
+    // --- Draw Grid for Looper Modes ---
     double loopDuration = audioProcessor.getLooperDurationInBeats();
     if (loopDuration <= 0) loopDuration = 4.0; // Default if no loop
 
@@ -64,7 +91,7 @@ void TimelineComponent::paint(juce::Graphics& g)
     auto& looperNotes = audioProcessor.getLooperNotes();
     if (looperNotes.empty() && mode != TimelineMode::Recording)
     {
-        // Nothing else to draw
+        g.drawRect(getLocalBounds(), 1); // Draw border and return
         return;
     }
 
@@ -73,25 +100,32 @@ void TimelineComponent::paint(juce::Graphics& g)
         minNote = juce::jmin(minNote, note.message.getNoteNumber());
         maxNote = juce::jmax(maxNote, note.message.getNoteNumber());
     }
+    // Also consider live notes for range if recording
+    if (mode == TimelineMode::Recording) {
+        for (const auto& note : audioProcessor.getLiveNotes()) {
+             if (note.startTime >= audioProcessor.getLooperRecordingStartTime()) {
+                minNote = juce::jmin(minNote, note.noteNumber);
+                maxNote = juce::jmax(maxNote, note.noteNumber);
+             }
+        }
+    }
+
     int noteRange = juce::jmax(24, maxNote - minNote);
     if (noteRange == 0) noteRange = 24;
 
-    // Draw Looper Notes (in Playback or Recording modes)
-    if (mode == TimelineMode::Playback || mode == TimelineMode::Recording)
+    // Draw existing Looper Notes
+    for (const auto& note : looperNotes)
     {
-        for (const auto& note : looperNotes)
-        {
-            float x = (float)(note.beatTime / loopDuration) * getWidth();
-            float w = (float)(note.durationInBeats / loopDuration) * getWidth();
-            float noteHeight = (float)getHeight() / (noteRange + 1);
-            float y = (1.0f - (float)(note.message.getNoteNumber() - minNote) / noteRange) * getHeight() - noteHeight;
+        float x = (float)(note.beatTime / loopDuration) * getWidth();
+        float w = (float)(note.durationInBeats / loopDuration) * getWidth();
+        float noteHeight = (float)getHeight() / (noteRange + 1);
+        float y = (1.0f - (float)(note.message.getNoteNumber() - minNote) / noteRange) * getHeight() - noteHeight;
 
-            auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.6f, 1.0f);
-            g.setColour(noteColour.withAlpha(brightness));
-            g.fillRect(x, y, w, noteHeight);
-            g.setColour(noteColour.darker(0.2f));
-            g.drawRect(x, y, w, noteHeight, 0.5f);
-        }
+        auto brightness = juce::jmap((float)note.message.getVelocity(), 1.0f, 127.0f, 0.6f, 1.0f);
+        g.setColour(noteColour.withAlpha(brightness));
+        g.fillRect(x, y, w, noteHeight);
+        g.setColour(noteColour.darker(0.2f));
+        g.drawRect(x, y, w, noteHeight, 0.5f);
     }
 
     // Draw newly recorded notes on top
@@ -102,11 +136,10 @@ void TimelineComponent::paint(juce::Graphics& g)
 
         for (const auto& note : liveNotes)
         {
-            // Only draw notes that were generated *after* recording started
             if (note.startTime < recordingStartTime) continue;
 
             double timeInLoop = note.startTime - recordingStartTime;
-            if (timeInLoop >= loopDuration) continue; // Should be handled by processor stop logic, but for safety
+            if (timeInLoop >= loopDuration) continue;
 
             float x = (float)(timeInLoop / loopDuration) * getWidth();
             float w = (float)(note.duration / loopDuration) * getWidth();

@@ -128,9 +128,9 @@ try {
 Write-Host "Building all plugin formats (VST3, Standalone)..." -ForegroundColor Yellow
 try {
     $result = & cmake --build $BuildPath --target CreativeMIDIGenerator --config Release 2>&1
+    Write-Host $result # Always print the build output
     if ($LASTEXITCODE -ne 0) {
         Write-Error "Build failed for plugin formats"
-        Write-Host $result
         exit 1
     }
     Write-Host "Plugin formats built successfully" -ForegroundColor Green
@@ -138,6 +138,11 @@ try {
     Write-Error "Build error: $($_.Exception.Message)"
     exit 1
 }
+
+# --- DEBUG: List all files in the build directory ---
+Write-Host "--- DEBUG: Listing contents of build directory ---" -ForegroundColor Magenta
+Get-ChildItem -Path $BuildPath -Recurse | Select-Object FullName
+Write-Host "--- DEBUG: End of file list ---" -ForegroundColor Magenta
 
 # Verify build artifacts
 $exePath = Get-ChildItem -Path $BuildPath -Recurse -File -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1

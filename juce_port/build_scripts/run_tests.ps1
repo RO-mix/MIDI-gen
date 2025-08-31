@@ -174,6 +174,23 @@ if (-not $exePath) {
     exit 1
 }
 
-# Run standalone app (optional, for local testing)
+# Copy VST3 to system folder
+if ($vst3Path) {
+    $vst3SystemPath = [System.Environment]::GetFolderPath('CommonProgramFiles') + "\VST3"
+    Write-Host "Attempting to copy VST3 to $vst3SystemPath" -ForegroundColor Yellow
+    try {
+        # Ensure the destination directory exists
+        if (-not (Test-Path $vst3SystemPath)) {
+            New-Item -ItemType Directory -Path $vst3SystemPath -Force | Out-Null
+        }
+        Copy-Item -Path $vst3Path.FullName -Destination $vst3SystemPath -Recurse -Force
+        Write-Host "VST3 plugin copied successfully." -ForegroundColor Green
+    } catch {
+        Write-Host "Warning: Could not copy VST3 plugin. This usually requires running PowerShell as an Administrator." -ForegroundColor Yellow
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Gray
+    }
+}
+
+# --- SCRIPT FINISHED ---
 Write-Host "--- SCRIPT FINISHED ---" -ForegroundColor Green
 Write-Host "Note: To run the standalone app, execute $($exePath.FullName)"

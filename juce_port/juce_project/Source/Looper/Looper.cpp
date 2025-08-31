@@ -270,6 +270,19 @@ double Looper::getPlaybackProgress() const
     return std::fmod(progress, 1.0);
 }
 
+size_t Looper::getRecordedNotesCount() const
+{
+    return notes_.size() + recordingPassNotes_.size();
+}
+
+std::vector<Looper::RecordedNote> Looper::getNotes() const
+{
+    // Return a combined vector of the main loop notes and the notes from the current recording pass.
+    auto allNotes = notes_;
+    allNotes.insert(allNotes.end(), recordingPassNotes_.begin(), recordingPassNotes_.end());
+    return allNotes;
+}
+
 juce::MidiMessage Looper::applyEffects(const juce::MidiMessage& message, [[maybe_unused]] double timeOffset)
 {
     juce::MidiMessage result = message;

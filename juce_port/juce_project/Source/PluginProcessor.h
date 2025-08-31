@@ -95,7 +95,7 @@ public:
     int getLooperPitchShift() const;
 
     // Getters for Timeline UI
-    const std::vector<Looper::RecordedNote>& getLooperNotes() const;
+    std::vector<Looper::RecordedNote> getLooperNotes() const;
     bool isLooperCaptureBuffer() const;
     double getLooperPlaybackProgress() const;
     double getLooperRecordProgress() const;

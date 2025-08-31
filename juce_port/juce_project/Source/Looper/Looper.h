@@ -65,10 +65,10 @@ public:
     bool isPlaybackActive() const { return isPlaying; }
     bool getIsCaptureBuffer() const { return isCaptureBuffer; }
     bool isRecordingTimeExceeded(double currentBeat) const;
-    size_t getRecordedNotesCount() const { return notes_.size(); }
+    size_t getRecordedNotesCount() const;
 
     // Getters for UI
-    const std::vector<RecordedNote>& getNotes() const { return notes_; }
+    std::vector<RecordedNote> getNotes() const;
     double getPlaybackProgress() const;
     double getDurationInBeats() const { return loopEnd - loopStart; }
     double getRecordingStartTime() const { return recordingStartTime_; }

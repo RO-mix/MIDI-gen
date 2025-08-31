@@ -580,13 +580,12 @@ int CreativeMidiGeneratorAudioProcessor::getLooperPitchShift() const
     return looper_ ? looper_->getPitchShift() : 0;
 }
 
-const std::vector<Looper::RecordedNote>& CreativeMidiGeneratorAudioProcessor::getLooperNotes() const
+std::vector<Looper::RecordedNote> CreativeMidiGeneratorAudioProcessor::getLooperNotes() const
 {
     if (looper_)
         return looper_->getNotes();
 
-    static const std::vector<Looper::RecordedNote> empty;
-    return empty;
+    return {}; // Return an empty vector
 }
 
 bool CreativeMidiGeneratorAudioProcessor::isLooperCaptureBuffer() const
@@ -935,7 +934,7 @@ std::vector<CreativeMidiGeneratorAudioProcessor::LiveNote> CreativeMidiGenerator
     {
         // If the looper is playing, its notes are the source of truth.
         std::vector<LiveNote> notes;
-        const auto& looperNotes = looper_->getNotes();
+        auto looperNotes = looper_->getNotes(); // Now returns by value
         notes.reserve(looperNotes.size());
         for (const auto& looperNote : looperNotes)
         {

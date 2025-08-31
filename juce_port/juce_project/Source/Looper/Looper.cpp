@@ -343,7 +343,6 @@ void Looper::startRecording(double maxDuration, bool isOverdub, double currentBe
     {
         clear();
     }
-    isCaptureBuffer = true;
 }
 
 void Looper::stopRecording(double stopBeat)

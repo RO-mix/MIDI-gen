@@ -124,25 +124,35 @@ try {
 }
 
 
-# Build all plugin formats
-Write-Host "Building all plugin formats (VST3, Standalone)..." -ForegroundColor Yellow
+# Build Standalone app
+Write-Host "Building Standalone application..." -ForegroundColor Yellow
 try {
-    $result = & cmake --build $BuildPath --target CreativeMIDIGenerator --config Release 2>&1
-    Write-Host $result # Always print the build output
+    $result = & cmake --build $BuildPath --target CreativeMIDIGenerator_Standalone --config Release 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Build failed for plugin formats"
+        Write-Error "Build failed for Standalone App"
+        Write-Host $result
         exit 1
     }
-    Write-Host "Plugin formats built successfully" -ForegroundColor Green
+    Write-Host "Standalone build completed successfully" -ForegroundColor Green
 } catch {
     Write-Error "Build error: $($_.Exception.Message)"
     exit 1
 }
 
-# --- DEBUG: List all files in the build directory ---
-Write-Host "--- DEBUG: Listing contents of build directory ---" -ForegroundColor Magenta
-Get-ChildItem -Path $BuildPath -Recurse | Select-Object FullName
-Write-Host "--- DEBUG: End of file list ---" -ForegroundColor Magenta
+# Build VST3 plugin
+Write-Host "Building VST3 plugin..." -ForegroundColor Yellow
+try {
+    $result = & cmake --build $BuildPath --target CreativeMIDIGenerator_VST3 --config Release 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Build failed for VST3"
+        Write-Host $result
+        exit 1
+    }
+    Write-Host "VST3 build completed successfully" -ForegroundColor Green
+} catch {
+    Write-Error "Build error: $($_.Exception.Message)"
+    exit 1
+}
 
 # Verify build artifacts
 $exePath = Get-ChildItem -Path $BuildPath -Recurse -File -Filter "CreativeMIDIGenerator.exe" | Select-Object -First 1

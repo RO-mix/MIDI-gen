@@ -86,6 +86,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     extendModeToggle.setButtonText("Extend");
     extendModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_EXTEND_MODE", extendModeToggle);
 
+    addAndMakeVisible(actionQuantizeLabel);
+    actionQuantizeLabel.setText("СИНХР.", juce::dontSendNotification);
+    actionQuantizeLabel.setJustificationType(juce::Justification::centredRight);
+
     addAndMakeVisible(actionQuantizeCombo);
     if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_ACTION_QUANTIZE")))
     {
@@ -139,40 +143,57 @@ void LooperSectionComponent::resized()
     auto bounds = getLocalBounds().reduced(15);
     bounds.removeFromTop(20); // Title spacing
 
-    auto rowHeight = 30;
-    auto spacing = 5;
+    const auto rowHeight = 30;
+    const auto spacing = 5;
+    const int buttonWidth = 85;
+    const int comboWidth = 120;
+    const int toggleWidth = 60;
+    const int labelWidth = 50;
 
     // Row 1
     auto row1 = bounds.removeFromTop(rowHeight);
-    playButton.setBounds(row1.removeFromLeft(85));
-    throughToggle.setBounds(row1.removeFromLeft(50));
-    padModeToggle.setBounds(row1.removeFromLeft(50));
+    playButton.setBounds(row1.removeFromLeft(buttonWidth));
+    throughToggle.setBounds(row1.removeFromLeft(toggleWidth));
+    padModeToggle.setBounds(row1.removeFromLeft(toggleWidth));
     doubleButton.setBounds(row1.removeFromLeft(40));
     splitButton.setBounds(row1.removeFromLeft(40));
-    quantizeButton.setBounds(row1.removeFromLeft(85));
-    quantizeGridCombo.setBounds(row1.removeFromLeft(80));
-    variationButton.setBounds(row1.removeFromLeft(85));
+    quantizeButton.setBounds(row1.removeFromLeft(buttonWidth));
+    quantizeGridCombo.setBounds(row1.removeFromLeft(comboWidth));
+    variationButton.setBounds(row1.removeFromLeft(buttonWidth));
     bounds.removeFromTop(spacing);
 
-    // Row 2
+    // Row 2 (Capture)
     auto row2 = bounds.removeFromTop(rowHeight);
-    captureButton.setBounds(row2.removeFromLeft(85));
-    captureDurationCombo.setBounds(row2.removeFromLeft(130));
-    captureOverdubToggle.setBounds(row2.removeFromLeft(80));
-    recapturePeriodCombo.setBounds(row2.removeFromLeft(130));
+    captureButton.setBounds(row2.removeFromLeft(buttonWidth));
+    row2.removeFromLeft(spacing);
+    captureDurationCombo.setBounds(row2.removeFromLeft(comboWidth));
+    row2.removeFromLeft(spacing);
+    captureOverdubToggle.setBounds(row2.removeFromLeft(toggleWidth));
+    row2.removeFromLeft(spacing);
+    recapturePeriodCombo.setBounds(row2.removeFromLeft(comboWidth + 20));
     bounds.removeFromTop(spacing);
 
-    // Row 3
+    // Row 3 (Record)
     auto row3 = bounds.removeFromTop(rowHeight);
-    recordButton.setBounds(row3.removeFromLeft(85));
-    recordLengthCombo.setBounds(row3.removeFromLeft(100));
-    recordOverdubToggle.setBounds(row3.removeFromLeft(60));
-    extendModeToggle.setBounds(row3.removeFromLeft(70));
-    actionQuantizeCombo.setBounds(row3.removeFromLeft(110));
-    row3.removeFromLeft(spacing); // Add some space
-    clearButton.setBounds(row3.removeFromLeft(85));
-    saveButton.setBounds(row3.removeFromLeft(85));
+    recordButton.setBounds(row3.removeFromLeft(buttonWidth));
+    row3.removeFromLeft(spacing);
+    recordLengthCombo.setBounds(row3.removeFromLeft(comboWidth));
+    row3.removeFromLeft(spacing);
+    recordOverdubToggle.setBounds(row3.removeFromLeft(toggleWidth));
+    row3.removeFromLeft(spacing);
+    extendModeToggle.setBounds(row3.removeFromLeft(toggleWidth + 10));
+    row3.removeFromLeft(spacing);
+    clearButton.setBounds(row3.removeFromLeft(buttonWidth));
     bounds.removeFromTop(spacing);
+
+    // Row 4 (Action Quantize)
+    auto row4 = bounds.removeFromTop(rowHeight);
+    actionQuantizeLabel.setBounds(row4.removeFromLeft(labelWidth));
+    actionQuantizeCombo.setBounds(row4.removeFromLeft(comboWidth));
+    row4.removeFromLeft(spacing);
+    saveButton.setBounds(row4.removeFromLeft(buttonWidth));
+    bounds.removeFromTop(spacing);
+
 
     // Intensity Sliders
     auto sliderRow = bounds.removeFromTop(rowHeight);

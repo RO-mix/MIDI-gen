@@ -86,16 +86,43 @@ void TimelineComponent::paint(juce::Graphics& g)
              return;
         }
 
-        // Draw static grid
-        for (double beat = 0; beat < loopDuration; beat += 0.25) // 16th note grid
+        // --- Draw Grid ---
+        double gridStepBeats = 0.0;
+        if (auto* gridParam = audioProcessor.apvts.getRawParameterValue("LOOPER_QUANTIZE_GRID"))
+        {
+            int choice = static_cast<int>(gridParam->load());
+            switch (choice) {
+                case 1: gridStepBeats = 1.0; break;    // 1/4 is whole beat
+                case 2: gridStepBeats = 0.5; break;    // 1/8
+                case 3: gridStepBeats = 0.25; break;   // 1/16
+                case 4: gridStepBeats = 0.125; break;  // 1/32
+                case 5: gridStepBeats = 0.0625; break; // 1/64
+                default: gridStepBeats = 0.0; break;   // Off
+            }
+        }
+
+        // Always draw at least the bar/beat lines to fix bug with short loops
+        const double baseStep = (loopDuration < 1.0) ? 0.25 : 1.0;
+        for (double beat = 0; beat < loopDuration; beat += baseStep)
         {
             float x = (float)(beat / loopDuration * width);
             bool isBarLine = fmod(beat, 4.0) < 0.001;
-            bool isBeatLine = fmod(beat, 1.0) < 0.001;
-            if (isBarLine) g.setColour(juce::Colours::grey);
-            else if (isBeatLine) g.setColour(juce::Colours::dimgrey);
-            else continue;
+            g.setColour(isBarLine ? juce::Colours::grey : juce::Colours::dimgrey);
             g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)height);
+        }
+
+        // Then, draw the quantization grid lines if active
+        if (gridStepBeats > 0)
+        {
+            for (double beat = 0; beat < loopDuration; beat += gridStepBeats)
+            {
+                // Avoid re-drawing lines that are on the beat
+                if (fmod(beat, baseStep) < 0.001) continue;
+
+                float x = (float)(beat / loopDuration * width);
+                g.setColour(juce::Colours::darkgrey.withAlpha(0.5f));
+                g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)height);
+            }
         }
 
         // Determine note range from all visible notes

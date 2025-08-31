@@ -43,6 +43,7 @@ private:
     juce::ComboBox recordLengthCombo;
     juce::ToggleButton recordOverdubToggle;
     juce::ToggleButton extendModeToggle;
+    juce::Label actionQuantizeLabel;
     juce::ComboBox actionQuantizeCombo;
     juce::TextButton saveButton;
 

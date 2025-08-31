@@ -65,10 +65,10 @@ public:
     bool isPlaybackActive() const { return isPlaying; }
     bool getIsCaptureBuffer() const { return isCaptureBuffer; }
     bool isRecordingTimeExceeded(double currentBeat) const;
-    size_t getRecordedNotesCount() const { return recordedNotes.size(); }
+    size_t getRecordedNotesCount() const { return notes_.size(); }
 
     // Getters for UI
-    const std::vector<RecordedNote>& getNotes() const { return recordedNotes; }
+    const std::vector<RecordedNote>& getNotes() const { return notes_; }
     double getPlaybackProgress() const;
     double getDurationInBeats() const { return loopEnd - loopStart; }
     double getRecordingStartTime() const { return recordingStartTime_; }
@@ -86,9 +86,10 @@ private:
     LooperMode currentMode = LooperMode::MidiLooper;
 
     // Данные записи
-    std::vector<RecordedNote> recordedNotes;
-    std::vector<RecordedNote> pristine_loop_;
-    std::vector<RecordedNote> pendingNotes; // For calculating duration
+    std::vector<RecordedNote> notes_;
+    std::vector<RecordedNote> pristineNotes_;
+    std::vector<RecordedNote> pendingNotes_;
+    std::vector<RecordedNote> recordingPassNotes_;
     juce::MidiBuffer generationBuffer; // Для Generation Looper
 
     // Состояние

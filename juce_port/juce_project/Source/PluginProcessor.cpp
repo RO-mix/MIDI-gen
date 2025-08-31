@@ -753,25 +753,28 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
                     pendingNoteOffs_.clear(); // A more targeted way to kill generator notes.
                 }
 
-                bool isExtendMode = apvts.getRawParameterValue("LOOPER_EXTEND_MODE")->load() > 0.5f;
-                double recordLengthInBeats = 16.0; // Default
-
-                if (isExtendMode && looper_->isPlaybackActive() && looper_->getDurationInBeats() > 0)
+                // Get selected record length from the UI
+                double selectedRecordLength = 16.0;
+                auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
+                if (lengthParam)
                 {
-                    // In extend mode over an existing loop, record indefinitely until user stops.
-                    recordLengthInBeats = 1.0e9; // A very large number for "infinite"
+                    int choice = static_cast<int>(lengthParam->load());
+                    double lengthMap[] = { 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0 };
+                    if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
+                        selectedRecordLength = lengthMap[choice];
                 }
-                else
+
+                double recordLengthInBeats = selectedRecordLength;
+                double currentLoopDuration = looper_ ? looper_->getDurationInBeats() : 0.0;
+                bool isExtendToggleOn = apvts.getRawParameterValue("LOOPER_EXTEND_MODE")->load() > 0.5f;
+
+                // "Extend" mode is on if the toggle is on, OR if we're recording a longer loop over an existing one.
+                bool shouldExtend = isExtendToggleOn || (selectedRecordLength > currentLoopDuration && currentLoopDuration > 0);
+
+                if (shouldExtend && looper_ && looper_->isPlaybackActive())
                 {
-                    // Standard behavior: use the length from the dropdown.
-                    auto* lengthParam = apvts.getRawParameterValue("LOOPER_RECORD_LENGTH");
-                    if (lengthParam)
-                    {
-                        int choice = static_cast<int>(lengthParam->load());
-                        double lengthMap[] = { 4.0, 8.0, 16.0, 32.0, 64.0, 128.0, 256.0 };
-                        if (choice >= 0 && static_cast<size_t>(choice) < std::size(lengthMap))
-                            recordLengthInBeats = lengthMap[choice];
-                    }
+                    // If extending, record indefinitely until the user stops manually.
+                    recordLengthInBeats = 1.0e9; // A very large number for "infinite"
                 }
 
                 juce::Logger::writeToLog("ACTION: Starting record for " + juce::String(recordLengthInBeats) + " beats. Overdub: " + (isOverdub ? "Yes" : "No"));

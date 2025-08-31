@@ -72,6 +72,7 @@ public:
     double getDurationInBeats() const { return loopEnd - loopStart; }
     double getRecordingStartTime() const { return recordingStartTime_; }
     double getMaxRecordLength() const { return maxRecordLengthBeats_; }
+    bool getIsCaptureBuffer() const { return isCaptureBuffer; }
 
 
     // Управление записью/воспроизведением
@@ -94,6 +95,7 @@ private:
     std::set<int> currentlyPlayingNotes;
     bool isRecording = false;
     bool isPlaying = false;
+    bool isCaptureBuffer = false;
     double playbackHead_ = 0.0;
     double recordingStartTime_ = 0.0;
     double maxRecordLengthBeats_ = 16.0; // Default to 4 bars

@@ -52,7 +52,7 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     captureDurationAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_DURATION", captureDurationCombo);
 
     addAndMakeVisible(captureOverdubToggle);
-    captureOverdubToggle.setButtonText("Overdub");
+    captureOverdubToggle.setButtonText("OVR");
     captureOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_CAPTURE_OVERDUB", captureOverdubToggle);
 
     addAndMakeVisible(recapturePeriodCombo);
@@ -79,7 +79,7 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordLengthAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(audioProcessor.apvts, "LOOPER_RECORD_LENGTH", recordLengthCombo);
 
     addAndMakeVisible(recordOverdubToggle);
-    recordOverdubToggle.setButtonText("Overdub");
+    recordOverdubToggle.setButtonText("OVR");
     recordOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_RECORD_OVERDUB", recordOverdubToggle);
 
     addAndMakeVisible(actionQuantizeCombo);
@@ -125,9 +125,8 @@ void LooperSectionComponent::looperStateChanged(bool isPlaying)
 
 void LooperSectionComponent::paint(juce::Graphics& g)
 {
-    g.setColour(juce::Colours::darkgrey);
-    g.drawRect(getLocalBounds(), 1);
-    g.setFont(18.0f);
+    g.setColour(juce::Colours::white);
+    g.setFont(20.0f);
     g.drawText("LOOPER", getLocalBounds().removeFromTop(30), juce::Justification::centred, false);
 }
 

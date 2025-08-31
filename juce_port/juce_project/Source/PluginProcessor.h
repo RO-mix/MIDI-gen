@@ -96,6 +96,7 @@ public:
 
     // Getters for Timeline UI
     const std::vector<Looper::RecordedNote>& getLooperNotes() const;
+    bool isLooperCaptureBuffer() const;
     double getLooperPlaybackProgress() const;
     double getLooperRecordProgress() const;
 
@@ -107,6 +108,7 @@ public:
     };
     std::vector<LiveNote> getLiveNotes() const;
     double getCurrentBeat() const { return currentBeat_; }
+    double getLooperRecordingStartTime() const;
     double getLooperDurationInBeats() const;
 
     void setLooperPlaybackSpeed(float speed) { if (looper_) looper_->setPlaybackSpeed(speed); }

@@ -8,7 +8,8 @@
 #include "RandomGeneratorV2Panel.h"
 
 class GeneratorSectionComponent : public juce::Component,
-                                  public juce::AudioProcessorValueTreeState::Listener
+                                  public juce::AudioProcessorValueTreeState::Listener,
+                                  public CreativeMidiGeneratorAudioProcessor::Listener
 {
 public:
     GeneratorSectionComponent(CreativeMidiGeneratorAudioProcessor&);
@@ -18,10 +19,14 @@ public:
     void resized() override;
 
     void parameterChanged(const juce::String& parameterID, float newValue) override;
+    void playbackStateChanged(bool isPlaying) override;
+    void looperStateChanged(bool isPlaying) override;
+
 
 private:
     CreativeMidiGeneratorAudioProcessor& audioProcessor;
 
+    juce::TextButton startButton;
     juce::ComboBox generatorTypeCombo;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> generatorTypeAttachment;
 

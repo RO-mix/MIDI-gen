@@ -99,6 +99,7 @@ void Looper::clear()
     generationBuffer.clear();
     loopStart = 0.0;
     loopEnd = 0.0;
+    isCaptureBuffer = false;
 }
 
 juce::MidiBuffer Looper::getPlaybackBuffer(int numSamples, double startTime, double endTime, bool isPadMode, int channel)
@@ -336,11 +337,13 @@ void Looper::startRecording(double maxDuration, bool isOverdub, double currentBe
 {
     maxRecordLengthBeats_ = maxDuration;
     recordingStartTime_ = currentBeat;
+    isCaptureBuffer = false;
     setRecording(true);
     if (!isOverdub)
     {
         clear();
     }
+    isCaptureBuffer = true;
 }
 
 void Looper::stopRecording()

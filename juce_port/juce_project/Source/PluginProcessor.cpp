@@ -143,6 +143,8 @@ bool CreativeMidiGeneratorAudioProcessor::isBusesLayoutSupported (const BusesLay
 
 void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    juce::MidiBuffer externalInput = midiMessages; // Make a copy of external MIDI for recording
+
     juce::MidiBuffer thruMessages;
     if (apvts.getRawParameterValue("LOOPER_THROUGH")->load())
     {
@@ -286,14 +288,16 @@ void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>
     // --- Record MIDI if necessary ---
     if (looper_ && looper_->isRecordingActive())
     {
-        // When recording, we want to capture the final mix of MIDI that the user is hearing.
-        // So, we create a temporary buffer of what will be played, and record that.
-        juce::MidiBuffer finalMidiForRecording;
-        finalMidiForRecording.addEvents(looperPlaybackMidi, 0, -1, 0);
-        finalMidiForRecording.addEvents(generatedMidi, 0, -1, 0);
-        finalMidiForRecording.addEvents(thruMessages, 0, -1, 0);
+        // Record MIDI from the generator and external input.
+        // We don't record the looper's own output (looperPlaybackMidi) because that would
+        // create duplicates on every overdub pass.
 
-        for (const auto metadata : finalMidiForRecording)
+        // Record Generator Output
+        for (const auto metadata : generatedMidi)
+            looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
+
+        // Record External Input
+        for (const auto metadata : externalInput)
             looper_->recordNote(metadata.getMessage(), lastBlockBeat + metadata.samplePosition * beatsPerSample);
     }
 
@@ -384,6 +388,11 @@ double CreativeMidiGeneratorAudioProcessor::getLooperDurationInBeats() const
     if (looper_)
         return looper_->getDurationInBeats();
     return 0.0;
+}
+
+double CreativeMidiGeneratorAudioProcessor::getLooperRecordingStartTime() const
+{
+    return looper_ ? looper_->getRecordingStartTime() : 0.0;
 }
 
 //==============================================================================
@@ -583,6 +592,11 @@ const std::vector<Looper::RecordedNote>& CreativeMidiGeneratorAudioProcessor::ge
 
     static const std::vector<Looper::RecordedNote> empty;
     return empty;
+}
+
+bool CreativeMidiGeneratorAudioProcessor::isLooperCaptureBuffer() const
+{
+    return looper_ ? looper_->getIsCaptureBuffer() : false;
 }
 
 double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const

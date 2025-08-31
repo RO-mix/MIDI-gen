@@ -7,6 +7,10 @@ GeneratorSectionComponent::GeneratorSectionComponent(CreativeMidiGeneratorAudioP
       dualEuclideanPanel(p),
       randomV2Panel(p)
 {
+    addAndMakeVisible(startButton);
+    startButton.setButtonText(audioProcessor.isPlaying() ? "Stop" : "Start");
+    startButton.onClick = [this] { audioProcessor.togglePlayback(); };
+
     addAndMakeVisible(generatorTypeCombo);
     if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("GENERATOR_TYPE")))
     {
@@ -20,6 +24,7 @@ GeneratorSectionComponent::GeneratorSectionComponent(CreativeMidiGeneratorAudioP
     addAndMakeVisible(randomV2Panel);
 
     audioProcessor.apvts.addParameterListener("GENERATOR_TYPE", this);
+    audioProcessor.addListener(this);
 
     // Set initial visibility
     parameterChanged("GENERATOR_TYPE", audioProcessor.apvts.getRawParameterValue("GENERATOR_TYPE")->load());
@@ -28,13 +33,23 @@ GeneratorSectionComponent::GeneratorSectionComponent(CreativeMidiGeneratorAudioP
 GeneratorSectionComponent::~GeneratorSectionComponent()
 {
     audioProcessor.apvts.removeParameterListener("GENERATOR_TYPE", this);
+    audioProcessor.removeListener(this);
+}
+
+void GeneratorSectionComponent::playbackStateChanged(bool isPlaying)
+{
+    startButton.setButtonText(isPlaying ? "Stop" : "Start");
+}
+
+void GeneratorSectionComponent::looperStateChanged(bool isPlaying)
+{
+    juce::ignoreUnused(isPlaying);
 }
 
 void GeneratorSectionComponent::paint(juce::Graphics& g)
 {
-    g.setColour(juce::Colours::darkgrey);
-    g.drawRect(getLocalBounds(), 1);
-    g.setFont(18.0f);
+    g.setColour(juce::Colours::white);
+    g.setFont(20.0f);
     g.drawText("GENERATOR", getLocalBounds().removeFromTop(30), juce::Justification::centred, false);
 }
 
@@ -43,7 +58,10 @@ void GeneratorSectionComponent::resized()
     auto bounds = getLocalBounds().reduced(15);
     bounds.removeFromTop(10); // spacing for title
 
-    generatorTypeCombo.setBounds(bounds.removeFromTop(30));
+    auto topRow = bounds.removeFromTop(30);
+    startButton.setBounds(topRow.removeFromLeft(80));
+    topRow.removeFromLeft(10);
+    generatorTypeCombo.setBounds(topRow);
     bounds.removeFromTop(10);
 
     // All panels share the same bounds

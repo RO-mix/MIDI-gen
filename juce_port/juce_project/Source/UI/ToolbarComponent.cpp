@@ -4,14 +4,7 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
     : audioProcessor(p)
 {
     // === Row 1: Playback and MIDI ===
-    addAndMakeVisible(startButton);
-    startButton.setButtonText("Start");
-    startButton.onClick = [this] {
-        audioProcessor.togglePlayback();
-        bool isPlaying = audioProcessor.isPlaying();
-        startButton.setButtonText(isPlaying ? "Stop" : "Start");
-    };
-
+#if !JucePlugin_Build_VST3
     addAndMakeVisible(bpmSlider);
     bpmSlider.setSliderStyle(juce::Slider::LinearHorizontal);
     bpmSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
@@ -19,6 +12,7 @@ ToolbarComponent::ToolbarComponent(CreativeMidiGeneratorAudioProcessor& p)
 
     addAndMakeVisible(bpmLabel);
     bpmLabel.setText("BPM", juce::dontSendNotification);
+#endif
 
     addAndMakeVisible(midiChannelSlider);
     midiChannelSlider.setSliderStyle(juce::Slider::IncDecButtons);
@@ -71,7 +65,7 @@ ToolbarComponent::~ToolbarComponent()
 
 void ToolbarComponent::playbackStateChanged(bool isPlaying)
 {
-    startButton.setButtonText(isPlaying ? "Stop" : "Start");
+    juce::ignoreUnused(isPlaying);
 }
 
 void ToolbarComponent::looperStateChanged(bool isPlaying)
@@ -96,12 +90,11 @@ void ToolbarComponent::resized()
     int componentWidth = 100;
 
     // --- Row 1: Playback and MIDI ---
-    startButton.setBounds(row.removeFromLeft(80));
-    row.removeFromLeft(spacing);
-
+#if !JucePlugin_Build_VST3
     bpmLabel.setBounds(row.removeFromLeft(labelWidth));
     bpmSlider.setBounds(row.removeFromLeft(componentWidth + 50)); // Wider for text box
     row.removeFromLeft(spacing);
+#endif
 
     midiChannelLabel.setBounds(row.removeFromLeft(labelWidth));
     midiChannelSlider.setBounds(row.removeFromLeft(componentWidth));

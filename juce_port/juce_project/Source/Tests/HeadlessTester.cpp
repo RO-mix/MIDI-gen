@@ -268,7 +268,7 @@ juce::String HeadlessTester::testLooperRecording()
         if (looper->getRecordedNotesCount() != 1)
             return formatTestResult("Looper Recording", false, "Should have 1 note after note-off");
 
-        looper->stopRecording();
+        looper->stopRecording(1.0);
         if (looper->isRecordingActive())
             return formatTestResult("Looper Recording", false, "Recording should be stopped");
 

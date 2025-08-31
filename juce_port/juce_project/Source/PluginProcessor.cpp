@@ -731,7 +731,7 @@ void CreativeMidiGeneratorAudioProcessor::executePendingLooperAction()
             if (looper_->isRecordingActive())
             {
                 juce::Logger::writeToLog("ACTION: Stopping record, starting playback.");
-                looper_->stopRecording();
+                looper_->stopRecording(currentBeat_);
                 looper_->startPlayback();
                 listeners_.call([&](Listener& l) { l.looperStateChanged(true); });
             }

@@ -42,6 +42,7 @@ private:
     juce::TextButton clearButton;
     juce::ComboBox recordLengthCombo;
     juce::ToggleButton recordOverdubToggle;
+    juce::ToggleButton extendModeToggle;
     juce::ComboBox actionQuantizeCombo;
     juce::TextButton saveButton;
 
@@ -61,6 +62,7 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> recapturePeriodAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> recordLengthAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> recordOverdubAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> extendModeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> actionQuantizeAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> bassIntensityAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> midIntensityAttachment;

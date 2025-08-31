@@ -143,7 +143,7 @@ bool CreativeMidiGeneratorAudioProcessor::isBusesLayoutSupported (const BusesLay
 
 void CreativeMidiGeneratorAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
-    juce::MidiBuffer externalInput = midiMessages; // Make a copy of external MIDI for recording
+    juce::MidiBuffer externalInput = midiMessages;
 
     juce::MidiBuffer thruMessages;
     if (apvts.getRawParameterValue("LOOPER_THROUGH")->load())

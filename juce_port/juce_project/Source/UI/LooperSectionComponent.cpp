@@ -82,6 +82,10 @@ LooperSectionComponent::LooperSectionComponent(CreativeMidiGeneratorAudioProcess
     recordOverdubToggle.setButtonText("OVR");
     recordOverdubAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_RECORD_OVERDUB", recordOverdubToggle);
 
+    addAndMakeVisible(extendModeToggle);
+    extendModeToggle.setButtonText("Extend");
+    extendModeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(audioProcessor.apvts, "LOOPER_EXTEND_MODE", extendModeToggle);
+
     addAndMakeVisible(actionQuantizeCombo);
     if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(audioProcessor.apvts.getParameter("LOOPER_ACTION_QUANTIZE")))
     {
@@ -161,9 +165,10 @@ void LooperSectionComponent::resized()
     // Row 3
     auto row3 = bounds.removeFromTop(rowHeight);
     recordButton.setBounds(row3.removeFromLeft(85));
-    recordLengthCombo.setBounds(row3.removeFromLeft(130));
-    recordOverdubToggle.setBounds(row3.removeFromLeft(80));
-    actionQuantizeCombo.setBounds(row3.removeFromLeft(130));
+    recordLengthCombo.setBounds(row3.removeFromLeft(100));
+    recordOverdubToggle.setBounds(row3.removeFromLeft(60));
+    extendModeToggle.setBounds(row3.removeFromLeft(70));
+    actionQuantizeCombo.setBounds(row3.removeFromLeft(110));
     row3.removeFromLeft(spacing); // Add some space
     clearButton.setBounds(row3.removeFromLeft(85));
     saveButton.setBounds(row3.removeFromLeft(85));

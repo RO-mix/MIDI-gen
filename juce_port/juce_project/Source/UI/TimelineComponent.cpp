@@ -38,9 +38,10 @@ void TimelineComponent::paint(juce::Graphics& g)
             noteColour = blue;
         }
     }
-    else // Live Mode
+
+    if (mode == TimelineMode::Live)
     {
-        // In live mode, we just show a scrolling grid, no notes.
+        // --- Live Generator View ---
         const float viewWidthBeats = 16.0f; // Show 4 bars
         const double gridResolution = 0.25; // 16th notes
         double currentBeat = audioProcessor.getCurrentBeat();
@@ -60,10 +61,43 @@ void TimelineComponent::paint(juce::Graphics& g)
 
             g.drawVerticalLine(juce::roundToInt(x), 0.0f, (float)getHeight());
         }
+
+        // Draw Live Notes
+        const auto& notes = audioProcessor.getLiveNotes();
+        const float nowX = getWidth() * 0.5f;
+        const float pixelsPerBeat = getWidth() / viewWidthBeats;
+
+        if (!notes.empty())
+        {
+            int minNote = 127, maxNote = 0;
+            for (const auto& note : notes)
+            {
+                minNote = juce::jmin(minNote, note.noteNumber);
+                maxNote = juce::jmax(maxNote, note.noteNumber);
+            }
+            int noteRange = juce::jmax(12, maxNote - minNote);
+
+            for (const auto& note : notes)
+            {
+                float x = nowX + (float)(note.startTime - audioProcessor.getCurrentBeat()) * pixelsPerBeat;
+                float w = (float)note.duration * pixelsPerBeat;
+                if (x + w < 0 || x > getWidth()) continue;
+
+                float noteHeight = (float)getHeight() / (noteRange + 1);
+                float y = (1.0f - (float)(note.noteNumber - minNote) / noteRange) * getHeight() - noteHeight;
+
+                auto brightness = juce::jmap((float)note.velocity, 1.0f, 127.0f, 0.6f, 1.0f);
+                g.setColour(orange.withAlpha(brightness));
+                g.fillRect(x, y, w, noteHeight);
+                g.setColour(orange.darker(0.2f));
+                g.drawRect(x, y, w, noteHeight, 0.5f);
+            }
+        }
+
         g.setColour(juce::Colours::white.withAlpha(0.7f));
-        g.drawVerticalLine(juce::roundToInt(getWidth() * 0.5f), 0.0f, (float)getHeight());
+        g.drawVerticalLine(juce::roundToInt(nowX), 0.0f, (float)getHeight());
         g.drawRect(getLocalBounds(), 1);
-        return; // End paint here for live mode
+        return;
     }
 
     // --- Draw Grid for Looper Modes ---

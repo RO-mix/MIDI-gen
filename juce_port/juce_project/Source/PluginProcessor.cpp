@@ -390,11 +390,6 @@ double CreativeMidiGeneratorAudioProcessor::getLooperDurationInBeats() const
     return 0.0;
 }
 
-double CreativeMidiGeneratorAudioProcessor::getLooperRecordingStartTime() const
-{
-    return looper_ ? looper_->getRecordingStartTime() : 0.0;
-}
-
 //==============================================================================
 bool CreativeMidiGeneratorAudioProcessor::hasEditor() const
 {
@@ -597,6 +592,11 @@ const std::vector<Looper::RecordedNote>& CreativeMidiGeneratorAudioProcessor::ge
 bool CreativeMidiGeneratorAudioProcessor::isLooperCaptureBuffer() const
 {
     return looper_ ? looper_->getIsCaptureBuffer() : false;
+}
+
+double CreativeMidiGeneratorAudioProcessor::getLooperRecordingStartTime() const
+{
+    return looper_ ? looper_->getRecordingStartTime() : 0.0;
 }
 
 double CreativeMidiGeneratorAudioProcessor::getLooperPlaybackProgress() const

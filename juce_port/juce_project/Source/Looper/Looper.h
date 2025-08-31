@@ -77,7 +77,7 @@ public:
 
     // Управление записью/воспроизведением
     void startRecording(double maxDuration, bool isOverdub, double currentBeat);
-    void stopRecording();
+    void stopRecording(double stopBeat);
     void setRecording(bool recording);
 
 private:
